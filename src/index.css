@@ -58,32 +58,27 @@ body {
   50% { opacity: 0.3; }
 }
 
-/* Reusable button styles */
-.btn-base {
-  @apply font-[var(--font-ui)] text-xs font-semibold tracking-[1px] uppercase py-1.5 px-3 border cursor-pointer transition-all;
+/* Button base */
+.btn-base, .btn-full, .btn-sm, .btn-active, .btn-danger, .btn-amber, .btn-cyan {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.15s;
 }
-.btn-full {
-  @apply btn-base w-full mt-1.5;
-}
-.btn-sm {
-  @apply btn-base py-1 px-2 text-[10px];
-}
-.btn-active {
-  @apply btn-base bg-olive border-olive text-white hover:bg-olive-lit;
-}
-.btn-danger {
-  @apply btn-base border-red text-red bg-transparent hover:bg-red hover:text-white;
-}
-.btn-amber {
-  @apply btn-base border-amber text-amber bg-transparent hover:bg-amber hover:text-black;
-}
-.btn-cyan {
-  @apply btn-base border-cyan text-cyan bg-transparent hover:bg-cyan hover:text-black;
-}
-.btn-full.btn-active { @apply bg-olive border-olive text-white hover:bg-olive-lit; }
-.btn-full.btn-danger { @apply border-red text-red bg-transparent hover:bg-red hover:text-white; }
-.btn-full.btn-amber { @apply border-amber text-amber bg-transparent hover:bg-amber hover:text-black; }
-.btn-full.btn-cyan { @apply border-cyan text-cyan bg-transparent hover:bg-cyan hover:text-black; }
-.btn-sm.btn-active { @apply bg-olive border-olive text-white; }
-.btn-sm.btn-danger { @apply border-red text-red bg-transparent hover:bg-red hover:text-white; }
-.btn-sm.btn-amber { @apply border-amber text-amber bg-transparent hover:bg-amber hover:text-black; }
+.btn-full { width: 100%; margin-top: 6px; }
+.btn-sm { padding: 4px 8px; font-size: 10px; }
+.btn-active { background: var(--color-olive); border-color: var(--color-olive); color: #fff; }
+.btn-active:hover { background: var(--color-olive-lit); border-color: var(--color-olive-lit); }
+.btn-danger { border-color: var(--color-red); color: var(--color-red); }
+.btn-danger:hover { background: var(--color-red); color: #fff; }
+.btn-amber { border-color: var(--color-amber); color: var(--color-amber); }
+.btn-amber:hover { background: var(--color-amber); color: #000; }
+.btn-cyan { border-color: var(--color-cyan); color: var(--color-cyan); }
+.btn-cyan:hover { background: var(--color-cyan); color: #000; }

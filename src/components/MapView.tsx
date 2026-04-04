@@ -44,7 +44,8 @@ export function MapView() {
     map.addControl(drawControl)
 
     // Handle polygon creation
-    map.on(L.Draw.Event.CREATED, (e: L.DrawEvents.Created) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map.on(L.Draw.Event.CREATED, (e: any) => {
       const target = drawTargetRef.current
       const store = useAppStore.getState()
       store.setDrawTarget(null)

@@ -1,3 +1,4 @@
+import L from 'leaflet'
 import { useAppStore } from '../store/useAppStore'
 
 export function FieldList() {
@@ -29,7 +30,7 @@ export function FieldList() {
             onClick={() => {
               selectField(f.id)
               if (f.layer) {
-                const map = f.layer._map
+                const map = (f.layer as unknown as { _map: L.Map })._map
                 if (map) map.fitBounds(f.layer.getBounds(), { padding: [40, 40] })
               }
             }}
@@ -77,7 +78,7 @@ export function FieldList() {
               onClick={() => {
                 const marker = f.pointMarkers[i]
                 if (marker) {
-                  const map = marker._map
+                  const map = (marker as unknown as { _map: L.Map })._map
                   if (map) map.setView([pt.lat, pt.lng], 17)
                   marker.openPopup()
                 }
