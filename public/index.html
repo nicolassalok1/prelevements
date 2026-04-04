@@ -4,21 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prélèvements GPS — ANRAC</title>
-<meta name="description" content="Outil ANRAC — définir les champs d'une exploitation et générer automatiquement les points de prélèvement GPS.">
+<meta name="description" content="Outil ANRAC — définir l'exploitation, les champs et générer les points de prélèvement GPS.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
+:root{
   --bg:#0d1117;--panel:#161b22;--border:#30363d;
-  --olive:#6a7c3e;--olive-lit:#8fa84f;--amber:#e6a817;--red:#cf4a4a;
+  --olive:#6a7c3e;--olive-lit:#8fa84f;--amber:#e6a817;--red:#cf4a4a;--cyan:#4fa8a0;
   --text:#cdd9e5;--muted:#768390;
   --mono:'Share Tech Mono',monospace;--ui:'Barlow Condensed',sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:var(--ui);height:100vh;display:grid;grid-template-rows:52px 1fr;grid-template-columns:340px 1fr;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);height:100vh;display:grid;grid-template-rows:52px 1fr;grid-template-columns:360px 1fr;overflow:hidden;}
 
 /* HEADER */
 header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:18px;padding:0 20px;}
@@ -27,6 +27,8 @@ header h1{font-size:15px;font-weight:600;letter-spacing:3px;text-transform:upper
 .header-status{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px;}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--olive-lit);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.help-btn{font-family:var(--mono);font-size:13px;color:var(--muted);background:none;border:1px solid var(--border);width:28px;height:28px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;}
+.help-btn:hover{border-color:var(--olive-lit);color:var(--olive-lit);}
 
 /* SIDEBAR */
 aside{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
@@ -41,18 +43,32 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 .btn.danger:hover{background:var(--red);color:#fff;}
 .btn.amber{border-color:var(--amber);color:var(--amber);}
 .btn.amber:hover{background:var(--amber);color:#000;}
+.btn.cyan{border-color:var(--cyan);color:var(--cyan);}
+.btn.cyan:hover{background:var(--cyan);color:#000;}
 .btn-full{width:100%;margin-top:6px;}
-.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none;}
 
-.mode-group{display:flex;gap:6px;}
+/* STEP INDICATOR */
+.steps-bar{display:flex;gap:0;margin-bottom:10px;}
+.step-ind{flex:1;text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:6px 4px;border-bottom:2px solid var(--border);color:var(--muted);transition:all .2s;}
+.step-ind.done{border-color:var(--olive-lit);color:var(--olive-lit);}
+.step-ind.current{border-color:var(--amber);color:var(--amber);}
+.step-num{font-size:12px;font-weight:700;display:block;margin-bottom:2px;}
 
-/* FIELD NAME INPUT */
+/* EXPLOITATION ZONE */
+.exploit-info{background:var(--bg);border:1px solid var(--border);padding:8px 10px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--text);display:flex;align-items:center;gap:8px;}
+.exploit-info .color-dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
+.exploit-info .info-text{flex:1;}
+.exploit-info .info-val{color:var(--cyan);}
+.exploit-info .btn{padding:3px 8px;font-size:10px;}
+
+/* FIELD INPUT */
 .field-name-row{display:flex;gap:6px;margin-bottom:8px;}
 .field-input{flex:1;font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;outline:none;transition:border-color .15s;}
 .field-input:focus{border-color:var(--olive-lit);}
 .field-input::placeholder{color:var(--muted);}
 
-/* SAMPLING CONFIG */
+/* CONFIG */
 .config-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .config-row label{font-size:11px;color:var(--muted);min-width:70px;text-transform:uppercase;letter-spacing:.5px;}
 .config-row select,.config-row input[type=number]{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;outline:none;flex:1;}
@@ -63,7 +79,7 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 .stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
 .stat-box{background:var(--bg);border:1px solid var(--border);padding:6px 8px;}
 .stat-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
-.stat-value{font-family:var(--mono);font-size:18px;color:var(--olive-lit);margin-top:1px;}
+.stat-value{font-family:var(--mono);font-size:16px;color:var(--olive-lit);margin-top:1px;}
 .stat-unit{font-size:9px;color:var(--muted);}
 
 /* FIELD LIST */
@@ -91,15 +107,13 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 .point-sub .pt-del:hover{color:var(--red);}
 
 .empty-state{padding:24px 16px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7;}
-
-/* EXPORT */
 .export-group{display:flex;gap:6px;}
 
 /* MAP */
 #map{width:100%;height:100%;background:#0d1117;}
 #map.draw-mode{cursor:crosshair !important;}
 
-/* LEAFLET OVERRIDES */
+/* LEAFLET */
 .leaflet-control-zoom a{background:var(--panel)!important;color:var(--text)!important;border-color:var(--border)!important;}
 .leaflet-bar{border-color:var(--border)!important;}
 .leaflet-popup-content-wrapper{background:var(--panel);border:1px solid var(--olive);border-radius:0;color:var(--text);font-family:var(--mono);font-size:11px;}
@@ -111,11 +125,7 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 #toast.show{opacity:1;transform:translateY(0);}
 #toast.error{border-color:var(--red);color:var(--red);}
 
-/* HELP BUTTON */
-.help-btn{font-family:var(--mono);font-size:13px;color:var(--muted);background:none;border:1px solid var(--border);width:28px;height:28px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;}
-.help-btn:hover{border-color:var(--olive-lit);color:var(--olive-lit);}
-
-/* MODAL */
+/* HELP MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:none;align-items:center;justify-content:center;}
 .modal-overlay.open{display:flex;}
 .modal{background:var(--panel);border:1px solid var(--border);padding:28px 32px;min-width:320px;max-width:620px;max-height:85vh;overflow-y:auto;position:relative;}
@@ -129,15 +139,11 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 .modal p{font-size:13px;color:var(--text);line-height:1.7;margin-bottom:8px;}
 .modal ul{margin:0 0 12px 18px;font-size:13px;color:var(--text);line-height:1.8;}
 .modal li strong{color:var(--amber);}
-.modal .steps{counter-reset:step;list-style:none;margin-left:0;padding-left:0;}
-.modal .steps li{counter-increment:step;padding-left:28px;position:relative;margin-bottom:6px;}
-.modal .steps li::before{content:counter(step);position:absolute;left:0;font-family:var(--mono);font-size:11px;color:#000;background:var(--olive-lit);width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50;}
+.modal .steps-list{counter-reset:step;list-style:none;margin-left:0;padding-left:0;}
+.modal .steps-list li{counter-increment:step;padding-left:28px;position:relative;margin-bottom:6px;font-size:13px;line-height:1.7;}
+.modal .steps-list li::before{content:counter(step);position:absolute;left:0;font-family:var(--mono);font-size:11px;color:#000;background:var(--olive-lit);width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
 .modal .tech{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:16px;padding-top:12px;border-top:1px solid var(--border);line-height:1.8;}
-.modal .config-row{margin-bottom:12px;}
-.modal-btns{display:flex;gap:8px;margin-top:18px;}
-.modal-btns .btn{flex:1;}
 
-/* RESPONSIVE */
 @media(max-width:768px){
   body{grid-template-columns:1fr;grid-template-rows:52px auto 1fr;}
   aside{border-right:none;border-bottom:1px solid var(--border);max-height:45vh;overflow-y:auto;}
@@ -148,7 +154,7 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
 
 <header>
   <div class="logo">ANRAC</div>
-  <h1>Gestion Parcelles & Prélèvements</h1>
+  <h1>Gestion Exploitation & Prélèvements</h1>
   <div class="header-status">
     <div class="dot"></div>
     <span id="status-text">EN ATTENTE</span>
@@ -156,65 +162,35 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
   <button class="help-btn" onclick="toggleHelp()" title="À propos">?</button>
 </header>
 
-<!-- HELP MODAL -->
-<div class="modal-overlay" id="help-modal" onclick="if(event.target===this)toggleHelp()">
-  <div class="modal">
-    <button class="modal-close" onclick="toggleHelp()">✕</button>
-    <h2>Prélèvements GPS — ANRAC</h2>
-    <p>Outil de terrain pour définir les champs d'une exploitation agricole et générer automatiquement les points de prélèvement GPS avec export des coordonnées.</p>
-
-    <h3>Gestion multi-parcelles</h3>
-    <ul>
-      <li>Dessinez autant de champs que nécessaire directement sur la carte</li>
-      <li>Chaque champ possède un nom personnalisé, une couleur distincte et un label visible</li>
-      <li>Sélection, suppression et régénération par champ</li>
-    </ul>
-
-    <h3>Génération automatique des points</h3>
-    <p>Trois méthodes de prélèvement disponibles :</p>
-    <ul>
-      <li><strong>Grille régulière</strong> — points uniformément espacés dans le champ</li>
-      <li><strong>Zigzag (W)</strong> — parcours en W, classique pour les prélèvements de sol</li>
-      <li><strong>Aléatoire stratifié</strong> — points aléatoires avec distance minimum entre eux</li>
-    </ul>
-    <p>La densité est configurable de 0.5 à 20 points par hectare.</p>
-
-    <h3>Comment utiliser</h3>
-    <ol class="steps">
-      <li>Saisissez le nom du champ (ex: "Blé Nord")</li>
-      <li>Cliquez <strong>Dessiner sur la carte</strong> et tracez les limites en cliquant les sommets</li>
-      <li>Choisissez la méthode de génération et la densité souhaitée</li>
-      <li>Cliquez <strong>Générer les points</strong></li>
-      <li>Répétez pour chaque champ de l'exploitation</li>
-      <li>Exportez les coordonnées en CSV, GeoJSON ou KML</li>
-    </ol>
-
-    <h3>Export des données</h3>
-    <ul>
-      <li><strong>CSV</strong> — colonnes : Champ, Label, Latitude, Longitude (8 décimales)</li>
-      <li><strong>GeoJSON</strong> — FeatureCollection avec points et polygones des parcelles</li>
-      <li><strong>KML</strong> — Placemarks organisés par dossier (un par champ)</li>
-    </ul>
-
-    <div class="tech">
-      Leaflet.js 1.9.4 · Leaflet.draw 1.0.4 · CartoDB Dark · Share Tech Mono + Barlow Condensed<br>
-      Usage interne ANRAC
+<aside>
+  <!-- STEP INDICATOR -->
+  <div class="section" style="padding:10px 16px;">
+    <div class="steps-bar">
+      <div class="step-ind current" id="step1"><span class="step-num">1</span>EXPLOITATION</div>
+      <div class="step-ind" id="step2"><span class="step-num">2</span>CHAMPS</div>
+      <div class="step-ind" id="step3"><span class="step-num">3</span>POINTS</div>
     </div>
   </div>
-</div>
 
-<aside>
-  <!-- ADD FIELD -->
-  <div class="section">
-    <div class="section-title">Nouveau champ</div>
+  <!-- STEP 1 : EXPLOITATION -->
+  <div class="section" id="sec-exploit">
+    <div class="section-title">Zone exploitation</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;">Délimitez le périmètre global de votre exploitation sur la carte.</p>
+    <button class="btn cyan btn-full" id="btn-exploit" onclick="startDrawExploit()">◈ Dessiner l'exploitation</button>
+    <div id="exploit-info" style="display:none;"></div>
+  </div>
+
+  <!-- STEP 2 : CHAMPS -->
+  <div class="section" id="sec-fields" style="display:none;">
+    <div class="section-title">Ajouter un champ</div>
     <div class="field-name-row">
       <input type="text" class="field-input" id="field-name" placeholder="Nom du champ (ex: Blé Nord)">
     </div>
-    <button class="btn active btn-full" id="btn-draw" onclick="startDrawField()">▭ Dessiner sur la carte</button>
+    <button class="btn active btn-full" id="btn-draw-field" onclick="startDrawField()">▭ Dessiner le champ</button>
   </div>
 
-  <!-- SAMPLING CONFIG -->
-  <div class="section">
+  <!-- STEP 3 : GENERATION -->
+  <div class="section" id="sec-generate" style="display:none;">
     <div class="section-title">Génération points</div>
     <div class="config-row">
       <label>Méthode</label>
@@ -229,7 +205,7 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
       <input type="number" id="cfg-density" value="1" min="0.5" max="20" step="0.5">
       <span style="font-size:10px;color:var(--muted)">pts/ha</span>
     </div>
-    <button class="btn amber btn-full" onclick="generatePointsForSelected()">⊕ Générer les points</button>
+    <button class="btn amber btn-full" onclick="generateAllFields()">⊕ Générer tous les points</button>
   </div>
 
   <!-- STATS -->
@@ -237,14 +213,14 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
     <div class="section-title">Exploitation</div>
     <div class="stats-grid">
       <div class="stat-box">
+        <div class="stat-label">Exploit.</div>
+        <div class="stat-value" id="stat-exploit">—</div>
+        <div class="stat-unit">ha total</div>
+      </div>
+      <div class="stat-box">
         <div class="stat-label">Champs</div>
         <div class="stat-value" id="stat-fields">0</div>
         <div class="stat-unit">parcelles</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Surface</div>
-        <div class="stat-value" id="stat-area">0</div>
-        <div class="stat-unit">ha total</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Points</div>
@@ -262,37 +238,78 @@ aside{background:var(--panel);border-right:1px solid var(--border);display:flex;
       <button class="btn amber" onclick="exportGeoJSON()">↓ GeoJSON</button>
       <button class="btn amber" onclick="exportKML()">↓ KML</button>
     </div>
+    <button class="btn danger btn-full" onclick="clearAll()">✕ Tout effacer</button>
   </div>
 
   <!-- FIELD LIST -->
   <div class="section" style="padding-bottom:6px;">
-    <div class="section-title">Champs de l'exploitation</div>
-    <button class="btn danger" style="font-size:10px;padding:4px 8px;" onclick="clearAll()">✕ Tout effacer</button>
+    <div class="section-title">Champs & points</div>
   </div>
   <div class="field-list" id="field-list">
-    <div class="empty-state">Saisissez un nom et dessinez<br>vos champs sur la carte.<br>Les points seront générés<br>automatiquement.</div>
+    <div class="empty-state">Commencez par dessiner<br>le périmètre de votre exploitation.</div>
   </div>
 </aside>
 
 <div id="map"></div>
 <div id="toast"></div>
 
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-modal" onclick="if(event.target===this)toggleHelp()">
+  <div class="modal">
+    <button class="modal-close" onclick="toggleHelp()">✕</button>
+    <h2>Prélèvements GPS — ANRAC</h2>
+    <p>Outil de terrain pour définir l'exploitation, ses champs et générer automatiquement les points de prélèvement GPS.</p>
+
+    <h3>Workflow en 3 étapes</h3>
+    <ol class="steps-list">
+      <li><strong>Exploitation</strong> — Dessinez le périmètre global de votre exploitation. C'est la zone qui vous appartient.</li>
+      <li><strong>Champs</strong> — À l'intérieur de l'exploitation, dessinez vos différents champs (parcelles). Chaque champ doit être entièrement contenu dans l'exploitation.</li>
+      <li><strong>Points</strong> — Générez automatiquement les points de prélèvement dans chaque champ selon la méthode et la densité choisies.</li>
+    </ol>
+
+    <h3>Méthodes de génération</h3>
+    <ul>
+      <li><strong>Grille régulière</strong> — points uniformément espacés</li>
+      <li><strong>Zigzag (W)</strong> — parcours en W, classique pour les prélèvements de sol</li>
+      <li><strong>Aléatoire stratifié</strong> — points aléatoires avec espacement minimum</li>
+    </ul>
+
+    <h3>Export</h3>
+    <ul>
+      <li><strong>CSV</strong> — Champ, Label, Latitude, Longitude (8 décimales)</li>
+      <li><strong>GeoJSON</strong> — points + polygones (exploitation et champs)</li>
+      <li><strong>KML</strong> — Placemarks par dossier</li>
+    </ul>
+
+    <div class="tech">
+      Leaflet.js 1.9.4 · Leaflet.draw 1.0.4 · CartoDB Dark<br>
+      Usage interne ANRAC
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script>
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 //  STATE
-// ═══════════════════════════════════════════
-const FIELD_COLORS = ['#8fa84f','#e6a817','#4fa8a0','#a84f6a','#4f6aa8','#a8854f','#8a4fa8','#4fa85e','#cf4a4a','#4a8fcf'];
-let fields = [];       // { id, name, color, latlngs[], layer, area, perim, points[], pointMarkers[] }
+// ═══════════════════════════════════════
+const FIELD_COLORS = ['#8fa84f','#e6a817','#a84f6a','#4f6aa8','#a8854f','#8a4fa8','#4fa85e','#cf4a4a','#4a8fcf','#cfcf4a'];
+
+let exploitLayer = null;
+let exploitPolygon = null;
+let exploitArea = 0;
+
+let fields = [];
 let fieldIdCounter = 0;
 let selectedFieldId = null;
-let drawHandler = null;
-let isDrawing = false;
 
-// ═══════════════════════════════════════════
+let drawHandler = null;
+let drawTarget = null; // 'exploit' or 'field'
+
+// ═══════════════════════════════════════
 //  MAP
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 const map = L.map('map', { center: [34.9615, -4.6181], zoom: 14, zoomControl: true });
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   attribution: '© CartoDB', maxZoom: 20
@@ -301,52 +318,122 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 const drawnItems = new L.FeatureGroup().addTo(map);
 const drawControl = new L.Control.Draw({
   edit: { featureGroup: drawnItems, edit: false, remove: false },
-  draw: { polygon: { shapeOptions: { color: '#8fa84f', weight: 2, fillOpacity: 0.15 } },
-    rectangle: false, circle: false, marker: false, polyline: false, circlemarker: false }
+  draw: { polygon: { shapeOptions: {} }, rectangle: false, circle: false, marker: false, polyline: false, circlemarker: false }
 });
 map.addControl(drawControl);
-// Hide native toolbar
 setTimeout(() => { const tb = document.querySelector('.leaflet-draw'); if (tb) tb.style.display = 'none'; }, 100);
 
-// ═══════════════════════════════════════════
-//  DRAW FIELD
-// ═══════════════════════════════════════════
-function startDrawField() {
-  if (isDrawing) { stopDraw(); return; }
-  const name = document.getElementById('field-name').value.trim();
-  if (!name) { toast('⚠ Saisissez un nom pour le champ', true); document.getElementById('field-name').focus(); return; }
-  isDrawing = true;
-  document.getElementById('btn-draw').textContent = '■ Annuler le dessin';
-  document.getElementById('btn-draw').classList.add('danger');
-  document.getElementById('btn-draw').classList.remove('active');
+// ═══════════════════════════════════════
+//  STEP 1 — EXPLOITATION
+// ═══════════════════════════════════════
+function startDrawExploit() {
+  if (drawHandler) { stopDraw(); return; }
+  drawTarget = 'exploit';
+  document.getElementById('btn-exploit').textContent = '■ Annuler le dessin';
+  document.getElementById('btn-exploit').classList.replace('cyan', 'danger');
   document.getElementById('map').classList.add('draw-mode');
-  setStatus('DESSIN — cliquez les sommets du champ');
+  setStatus('DESSIN EXPLOITATION — cliquez les sommets');
 
-  const color = FIELD_COLORS[fieldIdCounter % FIELD_COLORS.length];
   drawHandler = new L.Draw.Polygon(map, {
-    shapeOptions: { color: color, weight: 2, fillColor: color, fillOpacity: 0.12 }
+    shapeOptions: { color: '#4fa8a0', weight: 3, fillColor: '#4fa8a0', fillOpacity: 0.06, dashArray: '8 4' }
   });
   drawHandler.enable();
 }
 
-function stopDraw() {
-  if (drawHandler) { try { drawHandler.disable(); } catch(e){} drawHandler = null; }
-  isDrawing = false;
-  document.getElementById('btn-draw').textContent = '▭ Dessiner sur la carte';
-  document.getElementById('btn-draw').classList.remove('danger');
-  document.getElementById('btn-draw').classList.add('active');
-  document.getElementById('map').classList.remove('draw-mode');
-  setStatus('EN ATTENTE');
+function onExploitCreated(layer) {
+  // Remove old exploitation
+  if (exploitLayer) {
+    drawnItems.removeLayer(exploitLayer);
+    if (exploitLayer._label) map.removeLayer(exploitLayer._label);
+  }
+  exploitLayer = layer;
+  layer.setStyle({ color: '#4fa8a0', weight: 3, fillColor: '#4fa8a0', fillOpacity: 0.06, dashArray: '8 4' });
+  drawnItems.addLayer(layer);
+  exploitPolygon = layer.getLatLngs()[0];
+  exploitArea = calcArea(exploitPolygon) / 10000;
+
+  // Label
+  const center = layer.getBounds().getCenter();
+  exploitLayer._label = L.marker(center, {
+    icon: L.divIcon({
+      html: '<div style="font-family:var(--ui);font-size:13px;font-weight:700;color:#4fa8a0;text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;">EXPLOITATION</div>',
+      iconSize: [0,0], className: ''
+    })
+  }).addTo(map);
+
+  // Show exploit info
+  document.getElementById('exploit-info').style.display = 'flex';
+  document.getElementById('exploit-info').innerHTML = `
+    <div class="color-dot"></div>
+    <div class="info-text">Exploitation — <span class="info-val">${exploitArea.toFixed(2)} ha</span></div>
+    <button class="btn danger" style="padding:3px 8px;font-size:10px;flex:0;" onclick="redrawExploit()">Redessiner</button>
+  `;
+  document.getElementById('btn-exploit').textContent = '✓ Exploitation définie';
+  document.getElementById('btn-exploit').classList.replace('danger', 'cyan');
+  document.getElementById('btn-exploit').disabled = true;
+
+  // Unlock step 2
+  document.getElementById('sec-fields').style.display = '';
+  updateStepIndicator(2);
+  updateStats();
+  toast(`✓ Exploitation définie — ${exploitArea.toFixed(2)} ha`);
+  setStatus('AJOUTEZ VOS CHAMPS');
 }
 
-map.on(L.Draw.Event.CREATED, function(e) {
-  const name = document.getElementById('field-name').value.trim() || ('Champ ' + (fieldIdCounter + 1));
+function redrawExploit() {
+  // Clear fields too since they depend on exploitation
+  clearFieldsOnly();
+  if (exploitLayer) {
+    drawnItems.removeLayer(exploitLayer);
+    if (exploitLayer._label) map.removeLayer(exploitLayer._label);
+    exploitLayer = null; exploitPolygon = null; exploitArea = 0;
+  }
+  document.getElementById('exploit-info').style.display = 'none';
+  document.getElementById('btn-exploit').textContent = '◈ Dessiner l\'exploitation';
+  document.getElementById('btn-exploit').disabled = false;
+  document.getElementById('sec-fields').style.display = 'none';
+  document.getElementById('sec-generate').style.display = 'none';
+  updateStepIndicator(1);
+  updateStats();
+  renderFieldList();
+}
+
+// ═══════════════════════════════════════
+//  STEP 2 — CHAMPS
+// ═══════════════════════════════════════
+function startDrawField() {
+  if (drawHandler) { stopDraw(); return; }
+  const name = document.getElementById('field-name').value.trim();
+  if (!name) { toast('⚠ Saisissez un nom pour le champ', true); document.getElementById('field-name').focus(); return; }
+
+  drawTarget = 'field';
+  document.getElementById('btn-draw-field').textContent = '■ Annuler le dessin';
+  document.getElementById('btn-draw-field').classList.replace('active', 'danger');
+  document.getElementById('map').classList.add('draw-mode');
+  setStatus('DESSIN CHAMP — cliquez les sommets');
+
   const color = FIELD_COLORS[fieldIdCounter % FIELD_COLORS.length];
-  const layer = e.layer;
-  layer.setStyle({ color: color, fillColor: color, weight: 2, fillOpacity: 0.12 });
+  drawHandler = new L.Draw.Polygon(map, {
+    shapeOptions: { color: color, weight: 2, fillColor: color, fillOpacity: 0.15 }
+  });
+  drawHandler.enable();
+}
+
+function onFieldCreated(layer) {
+  const name = document.getElementById('field-name').value.trim() || ('Champ ' + (fieldIdCounter + 1));
+  const latlngs = layer.getLatLngs()[0];
+
+  // Validate: all vertices must be inside exploitation
+  const outsideVertices = latlngs.filter(ll => !isInsidePolygon(ll, exploitPolygon));
+  if (outsideVertices.length > 0) {
+    toast('⚠ Le champ doit être entièrement dans l\'exploitation !', true);
+    return;
+  }
+
+  const color = FIELD_COLORS[fieldIdCounter % FIELD_COLORS.length];
+  layer.setStyle({ color: color, weight: 2, fillColor: color, fillOpacity: 0.15 });
   drawnItems.addLayer(layer);
 
-  const latlngs = layer.getLatLngs()[0];
   const area = calcArea(latlngs) / 10000;
   const perim = calcPerimeter(latlngs);
 
@@ -362,34 +449,64 @@ map.on(L.Draw.Event.CREATED, function(e) {
     pointMarkers: []
   };
 
-  // Label on polygon
+  // Label
   const center = layer.getBounds().getCenter();
   field.labelMarker = L.marker(center, {
     icon: L.divIcon({
-      html: `<div style="font-family:var(--ui);font-size:12px;font-weight:700;color:${color};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap;">${name}</div>`,
+      html: `<div style="font-family:var(--ui);font-size:11px;font-weight:700;color:${color};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap;">${name}</div>`,
       iconSize: [0,0], className: ''
     })
   }).addTo(map);
 
   fields.push(field);
   selectedFieldId = field.id;
-
   document.getElementById('field-name').value = '';
-  stopDraw();
+
+  // Unlock step 3
+  document.getElementById('sec-generate').style.display = '';
+  updateStepIndicator(3);
   updateStats();
   renderFieldList();
   toast(`✓ "${name}" ajouté — ${area.toFixed(2)} ha`);
-  setStatus(`CHAMP "${name.toUpperCase()}" SÉLECTIONNÉ`);
+  setStatus(`CHAMP "${name.toUpperCase()}" AJOUTÉ`);
+}
+
+// ═══════════════════════════════════════
+//  DRAW MANAGEMENT
+// ═══════════════════════════════════════
+function stopDraw() {
+  if (drawHandler) { try { drawHandler.disable(); } catch(e){} drawHandler = null; }
+  document.getElementById('map').classList.remove('draw-mode');
+  // Reset buttons
+  if (drawTarget === 'exploit') {
+    const btn = document.getElementById('btn-exploit');
+    btn.textContent = exploitLayer ? '✓ Exploitation définie' : '◈ Dessiner l\'exploitation';
+    btn.classList.remove('danger');
+    btn.classList.add('cyan');
+  } else if (drawTarget === 'field') {
+    const btn = document.getElementById('btn-draw-field');
+    btn.textContent = '▭ Dessiner le champ';
+    btn.classList.remove('danger');
+    btn.classList.add('active');
+  }
+  drawTarget = null;
+  setStatus('EN ATTENTE');
+}
+
+map.on(L.Draw.Event.CREATED, function(e) {
+  const target = drawTarget;
+  stopDraw();
+  if (target === 'exploit') {
+    onExploitCreated(e.layer);
+  } else if (target === 'field') {
+    onFieldCreated(e.layer);
+  }
 });
 
-// ═══════════════════════════════════════════
-//  POINT GENERATION
-// ═══════════════════════════════════════════
-function generatePointsForSelected() {
-  const field = fields.find(f => f.id === selectedFieldId);
-  if (!field) { toast('⚠ Sélectionnez un champ d\'abord', true); return; }
-
-  // Clear existing points for this field
+// ═══════════════════════════════════════
+//  STEP 3 — POINT GENERATION
+// ═══════════════════════════════════════
+function generatePointsForField(field) {
   field.pointMarkers.forEach(m => map.removeLayer(m));
   field.pointMarkers = [];
   field.points = [];
@@ -398,19 +515,15 @@ function generatePointsForSelected() {
   const density = parseFloat(document.getElementById('cfg-density').value) || 1;
   const targetCount = Math.max(1, Math.round(field.area * density));
 
-  let generated = [];
-  if (method === 'grid') {
-    generated = generateGrid(field.latlngs, targetCount);
-  } else if (method === 'zigzag') {
-    generated = generateZigzag(field.latlngs, targetCount);
-  } else {
-    generated = generateRandom(field.latlngs, targetCount);
-  }
+  let generated;
+  if (method === 'grid') generated = generateGrid(field.latlngs, targetCount);
+  else if (method === 'zigzag') generated = generateZigzag(field.latlngs, targetCount);
+  else generated = generateRandom(field.latlngs, targetCount);
 
+  const prefix = field.name.substring(0, 3).toUpperCase().replace(/\s/g, '');
   generated.forEach((ll, i) => {
-    const label = field.name.substring(0, 3).toUpperCase() + '-' + String(i + 1).padStart(2, '0');
-    const pt = { label, lat: ll.lat, lng: ll.lng };
-    field.points.push(pt);
+    const label = prefix + '-' + String(i + 1).padStart(2, '0');
+    field.points.push({ label, lat: ll.lat, lng: ll.lng });
 
     const icon = L.divIcon({
       html: `<div style="
@@ -427,16 +540,33 @@ function generatePointsForSelected() {
       .bindPopup(`<b>${label}</b><br>${field.name}<br>Lat: ${ll.lat.toFixed(6)}<br>Lng: ${ll.lng.toFixed(6)}`);
     field.pointMarkers.push(marker);
   });
-
-  updateStats();
-  renderFieldList();
-  toast(`✓ ${generated.length} points générés pour "${field.name}"`);
 }
 
-// ── Grid generation
+function generateAllFields() {
+  if (!fields.length) { toast('⚠ Ajoutez d\'abord des champs', true); return; }
+  let total = 0;
+  fields.forEach(f => { generatePointsForField(f); total += f.points.length; });
+  updateStats();
+  renderFieldList();
+  toast(`✓ ${total} points générés sur ${fields.length} champ(s)`);
+}
+
+function generateForOne(id) {
+  const field = fields.find(f => f.id === id);
+  if (!field) return;
+  generatePointsForField(field);
+  updateStats();
+  renderFieldList();
+  toast(`✓ ${field.points.length} points pour "${field.name}"`);
+}
+
+// ═══════════════════════════════════════
+//  POINT GENERATION ALGORITHMS
+// ═══════════════════════════════════════
 function generateGrid(polygon, count) {
   const bounds = L.polygon(polygon).getBounds();
-  const cols = Math.max(1, Math.round(Math.sqrt(count * (bounds.getEast() - bounds.getWest()) / (bounds.getNorth() - bounds.getSouth()))));
+  const aspectRatio = (bounds.getEast() - bounds.getWest()) / Math.max(0.0001, bounds.getNorth() - bounds.getSouth());
+  const cols = Math.max(1, Math.round(Math.sqrt(count * aspectRatio)));
   const rows = Math.max(1, Math.round(count / cols));
   const stepLat = (bounds.getNorth() - bounds.getSouth()) / (rows + 1);
   const stepLng = (bounds.getEast() - bounds.getWest()) / (cols + 1);
@@ -448,15 +578,10 @@ function generateGrid(polygon, count) {
       if (isInsidePolygon({ lat, lng }, polygon)) pts.push({ lat, lng });
     }
   }
-  // If we got fewer than needed, add extras
-  if (pts.length === 0) {
-    const center = L.polygon(polygon).getBounds().getCenter();
-    pts.push({ lat: center.lat, lng: center.lng });
-  }
+  if (pts.length === 0) pts.push(getCentroid(polygon));
   return pts;
 }
 
-// ── Zigzag (W) generation
 function generateZigzag(polygon, count) {
   const bounds = L.polygon(polygon).getBounds();
   const rows = Math.max(2, Math.round(Math.sqrt(count)));
@@ -464,69 +589,54 @@ function generateZigzag(polygon, count) {
   const pts = [];
   for (let r = 1; r <= rows && pts.length < count; r++) {
     const lat = bounds.getSouth() + stepLat * r;
-    // Find the min/max lng inside polygon at this latitude
-    const intersections = [];
+    const insideLngs = [];
     for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += (bounds.getEast() - bounds.getWest()) / 200) {
-      if (isInsidePolygon({ lat, lng }, polygon)) intersections.push(lng);
+      if (isInsidePolygon({ lat, lng }, polygon)) insideLngs.push(lng);
     }
-    if (intersections.length === 0) continue;
-    const minLng = Math.min(...intersections);
-    const maxLng = Math.max(...intersections);
-
+    if (!insideLngs.length) continue;
+    const minLng = Math.min(...insideLngs), maxLng = Math.max(...insideLngs);
     const ptsPerRow = Math.max(1, Math.ceil(count / rows));
     for (let c = 0; c < ptsPerRow && pts.length < count; c++) {
-      let lng;
-      if (r % 2 === 1) {
-        lng = minLng + (maxLng - minLng) * c / Math.max(1, ptsPerRow - 1);
-      } else {
-        lng = maxLng - (maxLng - minLng) * c / Math.max(1, ptsPerRow - 1);
-      }
+      const t = ptsPerRow === 1 ? 0.5 : c / (ptsPerRow - 1);
+      const lng = r % 2 === 1 ? minLng + (maxLng - minLng) * t : maxLng - (maxLng - minLng) * t;
       if (isInsidePolygon({ lat, lng }, polygon)) pts.push({ lat, lng });
     }
   }
-  if (pts.length === 0) {
-    const center = L.polygon(polygon).getBounds().getCenter();
-    pts.push({ lat: center.lat, lng: center.lng });
-  }
+  if (pts.length === 0) pts.push(getCentroid(polygon));
   return pts;
 }
 
-// ── Random stratified generation
 function generateRandom(polygon, count) {
   const bounds = L.polygon(polygon).getBounds();
   const pts = [];
+  const boundsArea = (bounds.getNorth()-bounds.getSouth())*111320 * (bounds.getEast()-bounds.getWest())*111320*Math.cos((bounds.getSouth()+bounds.getNorth())/2*Math.PI/180);
+  const minDist = Math.sqrt(boundsArea / Math.max(1,count)) * 0.3;
   let attempts = 0;
-  while (pts.length < count && attempts < count * 100) {
+  while (pts.length < count && attempts < count * 150) {
     attempts++;
     const lat = bounds.getSouth() + Math.random() * (bounds.getNorth() - bounds.getSouth());
     const lng = bounds.getWest() + Math.random() * (bounds.getEast() - bounds.getWest());
-    if (isInsidePolygon({ lat, lng }, polygon)) {
-      // Minimum distance check to avoid clustering
-      const minDist = Math.sqrt(calcAreaFromBounds(bounds) / count) * 0.3;
-      const tooClose = pts.some(p => {
-        const dlat = (p.lat - lat) * 111320;
-        const dlng = (p.lng - lng) * 111320 * Math.cos(lat * Math.PI / 180);
-        return Math.sqrt(dlat*dlat + dlng*dlng) < minDist;
-      });
-      if (!tooClose) pts.push({ lat, lng });
-    }
+    if (!isInsidePolygon({ lat, lng }, polygon)) continue;
+    const tooClose = pts.some(p => {
+      const dlat = (p.lat - lat) * 111320;
+      const dlng = (p.lng - lng) * 111320 * Math.cos(lat * Math.PI / 180);
+      return Math.sqrt(dlat*dlat + dlng*dlng) < minDist;
+    });
+    if (!tooClose) pts.push({ lat, lng });
   }
-  if (pts.length === 0) {
-    const center = L.polygon(polygon).getBounds().getCenter();
-    pts.push({ lat: center.lat, lng: center.lng });
-  }
+  if (pts.length === 0) pts.push(getCentroid(polygon));
   return pts;
 }
 
-function calcAreaFromBounds(b) {
-  const h = (b.getNorth() - b.getSouth()) * 111320;
-  const w = (b.getEast() - b.getWest()) * 111320 * Math.cos((b.getSouth() + b.getNorth()) / 2 * Math.PI / 180);
-  return h * w;
+function getCentroid(polygon) {
+  let lat = 0, lng = 0;
+  polygon.forEach(p => { lat += p.lat; lng += p.lng; });
+  return { lat: lat / polygon.length, lng: lng / polygon.length };
 }
 
-// ═══════════════════════════════════════════
-//  GEOMETRY HELPERS
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
+//  GEOMETRY
+// ═══════════════════════════════════════
 function isInsidePolygon(point, polygon) {
   let inside = false;
   const x = point.lng, y = point.lat;
@@ -558,12 +668,21 @@ function calcPerimeter(latlngs) {
   return total;
 }
 
-// ═══════════════════════════════════════════
-//  UI UPDATES
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
+//  UI
+// ═══════════════════════════════════════
+function updateStepIndicator(current) {
+  [1,2,3].forEach(n => {
+    const el = document.getElementById('step' + n);
+    el.classList.remove('current', 'done');
+    if (n < current) el.classList.add('done');
+    else if (n === current) el.classList.add('current');
+  });
+}
+
 function updateStats() {
+  document.getElementById('stat-exploit').textContent = exploitArea > 0 ? exploitArea.toFixed(1) : '—';
   document.getElementById('stat-fields').textContent = fields.length;
-  document.getElementById('stat-area').textContent = fields.reduce((s, f) => s + f.area, 0).toFixed(2);
   document.getElementById('stat-pts').textContent = fields.reduce((s, f) => s + f.points.length, 0);
 }
 
@@ -586,6 +705,7 @@ function deleteField(id) {
   if (field.labelMarker) map.removeLayer(field.labelMarker);
   fields.splice(fi, 1);
   if (selectedFieldId === id) selectedFieldId = fields.length ? fields[0].id : null;
+  if (!fields.length) { document.getElementById('sec-generate').style.display = 'none'; updateStepIndicator(2); }
   updateStats();
   renderFieldList();
   toast(`Champ "${field.name}" supprimé`);
@@ -597,39 +717,38 @@ function deletePointFromField(fieldId, ptIndex) {
   map.removeLayer(field.pointMarkers[ptIndex]);
   field.pointMarkers.splice(ptIndex, 1);
   field.points.splice(ptIndex, 1);
-  // Re-label remaining points
+  relabelField(field);
+  updateStats();
+  renderFieldList();
+}
+
+function relabelField(field) {
+  const prefix = field.name.substring(0, 3).toUpperCase().replace(/\s/g, '');
   field.points.forEach((pt, i) => {
-    pt.label = field.name.substring(0, 3).toUpperCase() + '-' + String(i + 1).padStart(2, '0');
-  });
-  field.pointMarkers.forEach((m, i) => {
-    const pt = field.points[i];
-    m.setPopupContent(`<b>${pt.label}</b><br>${field.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}`);
-    m.setIcon(L.divIcon({
-      html: `<div style="
-        background:${field.color};color:#000;
-        font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;
-        width:24px;height:24px;display:flex;align-items:center;justify-content:center;
-        border:2px solid #0d1117;border-radius:50%;box-shadow:0 0 0 1px ${field.color};
-      ">${i+1}</div>`,
+    pt.label = prefix + '-' + String(i + 1).padStart(2, '0');
+    field.pointMarkers[i].setPopupContent(`<b>${pt.label}</b><br>${field.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}`);
+    field.pointMarkers[i].setIcon(L.divIcon({
+      html: `<div style="background:${field.color};color:#000;font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:2px solid #0d1117;border-radius:50%;box-shadow:0 0 0 1px ${field.color};">${i+1}</div>`,
       iconSize: [24,24], iconAnchor: [12,12]
     }));
   });
-  updateStats();
-  renderFieldList();
 }
 
 function focusPoint(fieldId, ptIndex) {
   const field = fields.find(f => f.id === fieldId);
   if (!field || !field.points[ptIndex]) return;
-  const pt = field.points[ptIndex];
-  map.setView([pt.lat, pt.lng], 17);
+  map.setView([field.points[ptIndex].lat, field.points[ptIndex].lng], 17);
   field.pointMarkers[ptIndex].openPopup();
 }
 
 function renderFieldList() {
   const el = document.getElementById('field-list');
-  if (fields.length === 0) {
-    el.innerHTML = '<div class="empty-state">Saisissez un nom et dessinez<br>vos champs sur la carte.<br>Les points seront générés<br>automatiquement.</div>';
+  if (!fields.length && !exploitLayer) {
+    el.innerHTML = '<div class="empty-state">Commencez par dessiner<br>le périmètre de votre exploitation.</div>';
+    return;
+  }
+  if (!fields.length) {
+    el.innerHTML = '<div class="empty-state">Exploitation définie.<br>Ajoutez maintenant vos champs.</div>';
     return;
   }
   let html = '';
@@ -641,15 +760,12 @@ function renderFieldList() {
         <span class="field-name">${f.name}</span>
         <span class="field-badge">${f.points.length} pts</span>
       </div>
-      <div class="field-meta">
-        ${f.area.toFixed(2)} ha · ${Math.round(f.perim)} m périm.
-      </div>
+      <div class="field-meta">${f.area.toFixed(2)} ha · ${Math.round(f.perim)} m</div>
       <div class="field-actions">
-        <button class="btn amber" onclick="event.stopPropagation();selectedFieldId=${f.id};generatePointsForSelected()">⊕ Régénérer</button>
+        <button class="btn amber" onclick="event.stopPropagation();generateForOne(${f.id})">⊕ Générer</button>
         <button class="btn danger" onclick="event.stopPropagation();deleteField(${f.id})">✕</button>
       </div>
     </div>`;
-    // Points sub-list
     f.points.forEach((pt, i) => {
       html += `<div class="point-sub" onclick="focusPoint(${f.id},${i})">
         <span class="pt-label">${pt.label}</span>
@@ -661,7 +777,7 @@ function renderFieldList() {
   el.innerHTML = html;
 }
 
-function clearAll() {
+function clearFieldsOnly() {
   fields.forEach(f => {
     f.pointMarkers.forEach(m => map.removeLayer(m));
     drawnItems.removeLayer(f.layer);
@@ -670,22 +786,35 @@ function clearAll() {
   fields = [];
   fieldIdCounter = 0;
   selectedFieldId = null;
+}
+
+function clearAll() {
+  clearFieldsOnly();
+  if (exploitLayer) {
+    drawnItems.removeLayer(exploitLayer);
+    if (exploitLayer._label) map.removeLayer(exploitLayer._label);
+    exploitLayer = null; exploitPolygon = null; exploitArea = 0;
+  }
+  document.getElementById('exploit-info').style.display = 'none';
+  document.getElementById('btn-exploit').textContent = '◈ Dessiner l\'exploitation';
+  document.getElementById('btn-exploit').disabled = false;
+  document.getElementById('btn-exploit').classList.remove('danger');
+  document.getElementById('btn-exploit').classList.add('cyan');
+  document.getElementById('sec-fields').style.display = 'none';
+  document.getElementById('sec-generate').style.display = 'none';
+  updateStepIndicator(1);
   updateStats();
   renderFieldList();
   setStatus('EN ATTENTE');
   toast('Carte réinitialisée');
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 //  EXPORTS
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 function getAllPoints() {
   const all = [];
-  fields.forEach(f => {
-    f.points.forEach(pt => {
-      all.push({ field: f.name, label: pt.label, lat: pt.lat, lng: pt.lng });
-    });
-  });
+  fields.forEach(f => f.points.forEach(pt => all.push({ field: f.name, label: pt.label, lat: pt.lat, lng: pt.lng })));
   return all;
 }
 
@@ -705,10 +834,19 @@ function exportGeoJSON() {
     properties: { field: p.field, label: p.label },
     geometry: { type: 'Point', coordinates: [p.lng, p.lat] }
   }));
+  // Add exploitation polygon
+  if (exploitPolygon) {
+    features.push({
+      type: 'Feature',
+      properties: { type: 'exploitation', area_ha: +exploitArea.toFixed(2) },
+      geometry: { type: 'Polygon', coordinates: [exploitPolygon.map(ll => [ll.lng, ll.lat]).concat([[exploitPolygon[0].lng, exploitPolygon[0].lat]])] }
+    });
+  }
+  // Add field polygons
   fields.forEach(f => {
     features.push({
       type: 'Feature',
-      properties: { type: 'parcelle', name: f.name, area_ha: +f.area.toFixed(2) },
+      properties: { type: 'champ', name: f.name, area_ha: +f.area.toFixed(2) },
       geometry: { type: 'Polygon', coordinates: [f.latlngs.map(ll => [ll.lng, ll.lat]).concat([[f.latlngs[0].lng, f.latlngs[0].lat]])] }
     });
   });
@@ -719,16 +857,15 @@ function exportGeoJSON() {
 function exportKML() {
   const pts = getAllPoints();
   if (!pts.length) { toast('⚠ Aucun point à exporter', true); return; }
-  let placemarks = '';
+  let body = '';
   fields.forEach(f => {
-    placemarks += `\n  <Folder><name>${f.name}</name>`;
+    body += `\n  <Folder><name>${f.name}</name>`;
     f.points.forEach(pt => {
-      placemarks += `\n    <Placemark><name>${pt.label}</name><description>${f.name}</description><Point><coordinates>${pt.lng.toFixed(8)},${pt.lat.toFixed(8)},0</coordinates></Point></Placemark>`;
+      body += `\n    <Placemark><name>${pt.label}</name><description>${f.name}</description><Point><coordinates>${pt.lng.toFixed(8)},${pt.lat.toFixed(8)},0</coordinates></Point></Placemark>`;
     });
-    placemarks += `\n  </Folder>`;
+    body += `\n  </Folder>`;
   });
-  const kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document><name>Prélèvements ANRAC</name>${placemarks}\n</Document>\n</kml>`;
-  download('prelevements.kml', kml, 'application/vnd.google-earth.kml+xml');
+  download('prelevements.kml', `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document><name>Prélèvements ANRAC</name>${body}\n</Document>\n</kml>`, 'application/vnd.google-earth.kml+xml');
   toast('✓ KML exporté');
 }
 
@@ -740,9 +877,9 @@ function download(filename, content, mime) {
   URL.revokeObjectURL(a.href);
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 //  UTILS
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════
 let toastTimer;
 function toast(msg, isError) {
   const el = document.getElementById('toast');
@@ -752,14 +889,8 @@ function toast(msg, isError) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
-
-function setStatus(t) {
-  document.getElementById('status-text').textContent = t;
-}
-
-function toggleHelp() {
-  document.getElementById('help-modal').classList.toggle('open');
-}
+function setStatus(t) { document.getElementById('status-text').textContent = t; }
+function toggleHelp() { document.getElementById('help-modal').classList.toggle('open'); }
 </script>
 </body>
 </html>
