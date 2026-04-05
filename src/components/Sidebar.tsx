@@ -155,47 +155,16 @@ export function Sidebar() {
           <StatBox label="Champs" value={String(store.fields.length)} unit="parcelles" />
           <StatBox label="Points" value={String(totalPoints)} unit="prélèvements" />
         </div>
-        {store.fields.length > 0 && (
-          <div className="mt-2 border border-border">
-            <div className="grid grid-cols-[1fr_auto_auto] gap-0 text-[9px] font-mono uppercase tracking-[.5px] text-muted border-b border-border">
-              <div className="px-2 py-1">Champ</div>
-              <div className="px-2 py-1 text-right">Surface</div>
-              <div className="px-2 py-1 text-right">Périm.</div>
-            </div>
-            {store.fields.map((f) => (
-              <div key={f.id} className="grid grid-cols-[1fr_auto_auto] gap-0 text-[11px] font-mono border-b border-border/50 last:border-b-0">
-                <div className="px-2 py-1 flex items-center gap-1.5 truncate">
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: f.color }} />
-                  <span className="truncate text-text">{f.name}</span>
-                </div>
-                <div className="px-2 py-1 text-right text-olive-lit">{f.area.toFixed(2)} ha</div>
-                <div className="px-2 py-1 text-right text-muted">{Math.round(f.perimeter)} m</div>
-              </div>
-            ))}
-            <div className="grid grid-cols-[1fr_auto_auto] gap-0 text-[11px] font-mono font-bold border-t border-border">
-              <div className="px-2 py-1 text-text">Total</div>
-              <div className="px-2 py-1 text-right text-olive-lit">
-                {store.fields.reduce((s, f) => s + f.area, 0).toFixed(2)} ha
-              </div>
-              <div className="px-2 py-1 text-right text-muted">—</div>
-            </div>
-          </div>
-        )}
       </Section>
 
-      {/* Export */}
+      {/* Export + Save/Load + Actions */}
       <Section>
-        <SectionTitle>Export données</SectionTitle>
-        <div className="flex gap-1.5">
+        <SectionTitle>Export & Sauvegarde</SectionTitle>
+        <div className="flex gap-1.5 mb-1.5">
           <button className="btn-amber flex-1" onClick={() => handleExport('csv')}>↓ CSV</button>
           <button className="btn-amber flex-1" onClick={() => handleExport('geojson')}>↓ GeoJSON</button>
           <button className="btn-amber flex-1" onClick={() => handleExport('kml')}>↓ KML</button>
         </div>
-      </Section>
-
-      {/* Save / Load project */}
-      <Section>
-        <SectionTitle>Sauvegarder / Charger</SectionTitle>
         <div className="flex gap-1.5">
           <button
             className="btn-cyan flex-1"
