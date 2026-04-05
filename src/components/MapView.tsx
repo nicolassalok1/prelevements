@@ -133,11 +133,20 @@ export function MapView() {
 
     stopDraw()
 
+    const drawOpts = {
+      allowIntersection: false,
+      repeatMode: false,
+      showArea: true,
+      metric: true,
+      icon: new L.DivIcon({ className: 'leaflet-div-icon-custom', iconSize: [10, 10] }),
+    }
+
     if (drawTarget === 'exploit') {
       containerRef.current?.classList.add('cursor-crosshair')
       const handler = new L.Draw.Polygon(map as any, {
+        ...drawOpts,
         shapeOptions: { color: '#4fa8a0', weight: 3, fillColor: '#4fa8a0', fillOpacity: 0.06, dashArray: '8 4' },
-      })
+      } as any)
       handler.enable()
       drawHandlerRef.current = handler
     } else if (drawTarget === 'field') {
@@ -145,8 +154,9 @@ export function MapView() {
       const store = useAppStore.getState()
       const color = FIELD_COLORS[store.fieldIdCounter % FIELD_COLORS.length]
       const handler = new L.Draw.Polygon(map as any, {
+        ...drawOpts,
         shapeOptions: { color, weight: 2, fillColor: color, fillOpacity: 0.15 },
-      })
+      } as any)
       handler.enable()
       drawHandlerRef.current = handler
     } else {
