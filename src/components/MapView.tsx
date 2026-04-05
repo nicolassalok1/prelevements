@@ -83,7 +83,7 @@ export function MapView() {
     })
 
     // Wire up generate-all button
-    document.addEventListener('click', (e) => {
+    const handleGenerateClick = (e: MouseEvent) => {
       const btn = (e.target as HTMLElement).closest('#btn-generate-all')
       if (btn) {
         const store = useAppStore.getState()
@@ -111,14 +111,19 @@ export function MapView() {
           store.toast(`✓ ${result.points.length} points pour "${field.name}"`)
         }
       }
-    })
+    }
+    document.addEventListener('click', handleGenerateClick)
 
     mapRef.current = map
 
     // Restore persisted data
     restorePersistedData(map)
 
-    return () => { map.remove() }
+    return () => {
+      document.removeEventListener('click', handleGenerateClick)
+      map.remove()
+      mapRef.current = null
+    }
   }, [])
 
   // React to drawTarget changes

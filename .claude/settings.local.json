@@ -10,7 +10,8 @@
       "Bash(curl -s http://localhost:4173)",
       "Bash(curl -s http://localhost:5173/src/main.tsx)",
       "Bash(curl -s http://localhost:5174)",
-      "Bash(curl -s http://localhost:5175)"
+      "Bash(curl -s http://localhost:5175)",
+      "Bash(node -e ':*)"
     ]
   }
 }
