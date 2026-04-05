@@ -66,8 +66,18 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(f.name)
+  const [pointsVisible, setPointsVisible] = useState(true)
   const updateField = useAppStore((s) => s.updateField)
   const toast = useAppStore((s) => s.toast)
+
+  const togglePoints = () => {
+    const next = !pointsVisible
+    setPointsVisible(next)
+    f.pointMarkers.forEach((m) => {
+      const el = (m as unknown as { _icon: HTMLElement })._icon
+      if (el) el.style.display = next ? '' : 'none'
+    })
+  }
 
   const handleRename = () => {
     const newName = editName.trim()
@@ -126,9 +136,19 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
             {f.name}
           </span>
         )}
-        <span className="font-mono text-[9px] text-amber bg-amber/10 border border-amber/25 px-1.5 py-px">
-          {f.points.length} pts
-        </span>
+        {f.points.length > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); togglePoints() }}
+            className={`font-mono text-[9px] px-1.5 py-px border cursor-pointer transition-all
+              ${pointsVisible ? 'text-amber bg-amber/10 border-amber/25' : 'text-muted bg-transparent border-border line-through'}`}
+            title={pointsVisible ? 'Masquer les points' : 'Afficher les points'}
+          >
+            {f.points.length} pts {pointsVisible ? '◉' : '○'}
+          </button>
+        )}
+        {f.points.length === 0 && (
+          <span className="font-mono text-[9px] text-muted bg-transparent border border-border px-1.5 py-px">0 pts</span>
+        )}
       </div>
       <div className="font-mono text-[10px] text-muted leading-relaxed">
         {f.area.toFixed(2)} ha · {Math.round(f.perimeter)} m
