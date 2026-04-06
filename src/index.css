@@ -83,6 +83,32 @@ body {
   color: var(--color-red) !important;
 }
 
+/* Point markers */
+.point-marker {
+  position: relative;
+  width: 32px;
+  height: 40px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  transition: transform 0.15s;
+}
+.point-marker:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.6));
+}
+.point-label {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-shadow: 0 0 2px rgba(0,0,0,0.8);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Hide native Leaflet.draw toolbar */
 .leaflet-draw {
   display: none !important;

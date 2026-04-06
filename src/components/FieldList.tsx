@@ -209,7 +209,7 @@ function PointRow({ field: f, point: pt, index: i }: { field: Field; point: { la
 
   return (
     <div
-      className="font-mono text-[10px] text-muted py-1 px-4 pl-8 border-b border-border/50 cursor-pointer transition-colors hover:bg-amber/5 flex items-center gap-1.5"
+      className="font-mono text-[10px] text-muted py-1.5 px-3 pl-6 border-b border-border/50 cursor-pointer transition-colors hover:bg-amber/5 flex items-center gap-2"
       onClick={() => {
         const marker = f.pointMarkers[i]
         if (marker) {
@@ -225,30 +225,31 @@ function PointRow({ field: f, point: pt, index: i }: { field: Field; point: { la
           onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePoint(); if (e.key === 'Escape') { setLabel(pt.label); setEditingLabel(false) } }}
           onBlur={handleRenamePoint} autoFocus
           onClick={(e) => e.stopPropagation()}
-          className="w-[50px] font-mono text-[10px] bg-bg border border-olive-lit text-amber py-0 px-1 outline-none"
+          className="w-[55px] font-mono text-[10px] bg-bg border border-olive-lit text-amber py-0.5 px-1.5 outline-none"
         />
       ) : (
-        <span className="text-amber min-w-[36px] hover:underline"
+        <span className="text-amber min-w-[40px] font-bold hover:underline cursor-text"
           onDoubleClick={(e) => { e.stopPropagation(); setLabel(pt.label); setEditingLabel(true) }}
           title="Double-clic pour renommer">
           {pt.label}
         </span>
       )}
-      <span className="flex-1">{pt.lat.toFixed(6)}, {pt.lng.toFixed(6)}</span>
+      <span className="flex-1 text-[9px]">{pt.lat.toFixed(6)}, {pt.lng.toFixed(6)}</span>
       <button
-        className="text-muted bg-transparent border-none cursor-pointer text-[10px] px-0.5 hover:text-olive-lit transition-colors"
+        className="text-muted bg-transparent border-none cursor-pointer text-[11px] px-1 hover:text-olive-lit transition-colors"
         onClick={(e) => { e.stopPropagation(); setLabel(pt.label); setEditingLabel(true) }}
         title="Renommer">
         ✎
       </button>
       <button
-        className="text-border bg-transparent border-none cursor-pointer text-xs px-0.5 hover:text-red transition-colors"
+        className="text-red bg-transparent border-none cursor-pointer text-sm font-bold px-1 hover:text-white hover:bg-red/30 transition-all rounded"
         onClick={(e) => {
           e.stopPropagation()
           const marker = f.pointMarkers[i]
           if (marker) marker.remove()
           useAppStore.getState().removePoint(f.id, i)
         }}
+        title="Supprimer le point"
       >
         ✕
       </button>

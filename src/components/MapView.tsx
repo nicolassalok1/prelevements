@@ -114,15 +114,7 @@ export function MapView() {
       const ptNum = field.points.length + 1
       const label = 'P' + String(ptNum).padStart(3, '0')
 
-      const icon = L.divIcon({
-        html: `<div style="
-          background:${field.color};color:#000;
-          font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;
-          width:24px;height:24px;display:flex;align-items:center;justify-content:center;
-          border:2px solid #0d1117;border-radius:50%;box-shadow:0 0 0 1px ${field.color};
-        ">${ptNum}</div>`,
-        iconSize: [24, 24], iconAnchor: [12, 12],
-      })
+      const icon = createPointIcon(field.color, label)
 
       const marker = L.marker(latlng, { icon })
         .addTo(map)
@@ -310,6 +302,24 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
   store.toast(`✓ "${name}" ajouté — ${area.toFixed(2)} ha`)
 }
 
+// ── Point icon ──
+
+function createPointIcon(color: string, label: string) {
+  return L.divIcon({
+    html: `<div class="point-marker" style="--pt-color:${color}">
+      <svg width="32" height="40" viewBox="0 0 32 40">
+        <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24C32 7.2 24.8 0 16 0z" fill="${color}"/>
+        <circle cx="16" cy="15" r="9" fill="#0d1117"/>
+      </svg>
+      <span class="point-label">${label}</span>
+    </div>`,
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -36],
+    className: '',
+  })
+}
+
 // ── Restore persisted data ──
 
 function restorePersistedData(map: L.Map) {
@@ -362,17 +372,8 @@ function restorePersistedData(map: L.Map) {
       }).addTo(map)
 
       // Restore point markers
-      const pointMarkers = sf.points.map((pt, i) => {
-        const icon = L.divIcon({
-          html: `<div style="
-            background:${sf.color};color:#000;
-            font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;
-            width:24px;height:24px;display:flex;align-items:center;justify-content:center;
-            border:2px solid #0d1117;border-radius:50%;box-shadow:0 0 0 1px ${sf.color};
-          ">${i + 1}</div>`,
-          iconSize: [24, 24], iconAnchor: [12, 12],
-        })
-        return L.marker([pt.lat, pt.lng], { icon })
+      const pointMarkers = sf.points.map((pt) => {
+        return L.marker([pt.lat, pt.lng], { icon: createPointIcon(sf.color, pt.label) })
           .addTo(map)
           .bindPopup(`<b>${pt.label}</b><br>${sf.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}`)
       })
