@@ -372,7 +372,10 @@ function restorePersistedData(map: L.Map) {
         color: sf.color, weight: 2, fillColor: sf.color, fillOpacity: 0.15,
       }).addTo(map)
 
-      layer.on('click', () => useAppStore.getState().openFieldDetail(sf.id))
+      layer.on('click', () => {
+        useAppStore.getState().selectField(sf.id)
+        document.getElementById('field-card-' + sf.id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      })
 
       const center = layer.getBounds().getCenter()
       const labelMarker = L.marker(center, {
