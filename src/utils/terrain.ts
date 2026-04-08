@@ -154,6 +154,70 @@ export function sampleBoundingBoxGrid(
   return { points, width: size, height: size, inside }
 }
 
+/**
+ * Separable 1D Gaussian blur over a 2D grid stored in row-major order.
+ * Smooths out DEM quantization steps (visible as "stair-step" artifacts
+ * on low-relief fields) before the 3D renderer consumes the values.
+ *
+ * Two passes are applied: horizontal then vertical — equivalent to a
+ * 2D convolution with a Gaussian kernel, but O(n·k) instead of O(n·k²).
+ *
+ * @param values Flat array of length width*height (row-major).
+ * @param width  Grid width in cells.
+ * @param height Grid height in cells.
+ * @param sigma  Standard deviation of the Gaussian, in cells.
+ *               Useful range: 0.5 (gentle) to 2 (strong).
+ * @returns A new array of the same length with the smoothed values.
+ */
+export function smoothGrid(
+  values: ReadonlyArray<number>,
+  width: number,
+  height: number,
+  sigma = 1,
+): number[] {
+  if (values.length !== width * height) {
+    throw new Error('smoothGrid: values length must equal width*height')
+  }
+  if (sigma <= 0 || width === 0 || height === 0) return values.slice()
+
+  // Build a truncated Gaussian kernel (radius = ceil(3σ)).
+  const radius = Math.max(1, Math.ceil(sigma * 3))
+  const kernel: number[] = []
+  let kernelSum = 0
+  for (let k = -radius; k <= radius; k++) {
+    const w = Math.exp(-(k * k) / (2 * sigma * sigma))
+    kernel.push(w)
+    kernelSum += w
+  }
+  for (let k = 0; k < kernel.length; k++) kernel[k] /= kernelSum
+
+  // Pass 1: horizontal (over each row). Clamps at borders.
+  const tmp = new Array<number>(width * height)
+  for (let j = 0; j < height; j++) {
+    for (let i = 0; i < width; i++) {
+      let acc = 0
+      for (let k = -radius; k <= radius; k++) {
+        const ii = Math.max(0, Math.min(width - 1, i + k))
+        acc += values[j * width + ii] * kernel[k + radius]
+      }
+      tmp[j * width + i] = acc
+    }
+  }
+  // Pass 2: vertical (over each column). Clamps at borders.
+  const out = new Array<number>(width * height)
+  for (let j = 0; j < height; j++) {
+    for (let i = 0; i < width; i++) {
+      let acc = 0
+      for (let k = -radius; k <= radius; k++) {
+        const jj = Math.max(0, Math.min(height - 1, j + k))
+        acc += tmp[jj * width + i] * kernel[k + radius]
+      }
+      out[j * width + i] = acc
+    }
+  }
+  return out
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  PROJECTION & PLANE FIT
 // ═══════════════════════════════════════════════════════════════════════

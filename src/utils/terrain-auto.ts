@@ -168,10 +168,10 @@ export interface FieldElevationGrid {
  * Terrain3DView.tsx.
  */
 export function adaptiveGridSize(areaHa: number): number {
-  if (areaHa < 0.5) return 16   // 256 pts — 3 batches, ~1.5 s
-  if (areaHa < 2) return 20     // 400 pts — 4 batches, ~2 s
-  if (areaHa < 10) return 24    // 576 pts — 6 batches, ~2.5 s
-  return 28                     // 784 pts — 8 batches, ~3.5 s
+  if (areaHa < 0.5) return 24   // 576 pts — 6 batches, ~3 s
+  if (areaHa < 2) return 30     // 900 pts — 9 batches, ~4.5 s
+  if (areaHa < 10) return 36    // 1296 pts — 13 batches, ~6.5 s
+  return 44                     // 1936 pts — 20 batches, ~10 s
 }
 
 /**

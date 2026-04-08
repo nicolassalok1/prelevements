@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useAppStore } from '../store/useAppStore'
+import { smoothGrid } from '../utils/terrain'
 import { fetchFieldElevationGrid, adaptiveGridSize } from '../utils/terrain-auto'
 import type { FieldElevationGrid } from '../utils/terrain-auto'
 import type { Field, LatLng } from '../types'
@@ -30,14 +31,20 @@ import type { Field, LatLng } from '../types'
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * How many render vertices per DEM grid cell. A value of 3 means each
- * cell becomes a 3×3 block → mesh vertex count = (width*3) × (height*3).
- *
- * The DEM's real resolution is ~30 m so fetching more points doesn't
- * give more information — bilinear subdivision here produces the visual
- * smoothness the user expects without spamming Open-Meteo.
+ * How many render vertices per DEM grid cell. A value of 4 means each
+ * cell becomes a 4×4 block of fine vertices. Combined with Gaussian
+ * pre-smoothing of the DEM, this gives a continuous professional-looking
+ * surface even on low-relief plots where DEM quantization (~1 m steps)
+ * would otherwise create visible stair-step artifacts.
  */
 const RENDER_SUBDIVISION = 4
+
+/**
+ * Gaussian blur σ (in DEM cells) applied to the elevation values before
+ * the mesh is built. σ = 1 is a gentle smoothing that kills DEM
+ * quantization noise without erasing real topographic features.
+ */
+const SMOOTHING_SIGMA = 1
 
 // ═══════════════════════════════════════════════════════════════════════
 //  COLOR RAMP
@@ -173,7 +180,21 @@ function buildTerrainGeometry(
     refs.outlineLine = undefined
   }
 
-  const { width, height, elevations, inside, altMin, altMax, bboxWidthM, bboxHeightM } = grid
+  const { width, height, inside, bboxWidthM, bboxHeightM } = grid
+
+  // Smooth the raw DEM values to remove quantization "stair-steps" that
+  // are especially visible on low-relief fields. σ=1 cells is a gentle
+  // 5-tap Gaussian that removes noise without erasing real features.
+  const elevations = smoothGrid(grid.elevations, width, height, SMOOTHING_SIGMA)
+
+  // Recompute min/max from the smoothed values so the color ramp and
+  // y-scale are consistent with what's actually rendered.
+  let altMin = Infinity
+  let altMax = -Infinity
+  for (const z of elevations) {
+    if (z < altMin) altMin = z
+    if (z > altMax) altMax = z
+  }
 
   // Normalize the plan view to a [-1, 1] square preserving aspect ratio.
   const maxSide = Math.max(bboxWidthM, bboxHeightM)
