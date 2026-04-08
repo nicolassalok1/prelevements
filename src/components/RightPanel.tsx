@@ -52,7 +52,8 @@ export function RightPanel() {
 }
 
 function ArchivesSection() {
-  const archivedFields = useAppStore((s) => s.fields.filter((f) => f.archived))
+  const allFields = useAppStore((s) => s.fields)
+  const archivedFields = allFields.filter((f) => f.archived)
   const unarchiveField = useAppStore((s) => s.unarchiveField)
   const setArchivedFieldVisible = useAppStore((s) => s.setArchivedFieldVisible)
   const toast = useAppStore((s) => s.toast)

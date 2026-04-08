@@ -12,11 +12,14 @@ function activityLabel(a: Activity): string {
 }
 
 export function ArchiveFieldModal({ fieldId, onClose }: { fieldId: number; onClose: () => void }) {
-  const field = useAppStore((s) => s.fields.find((f) => f.id === fieldId))
-  const otherFields = useAppStore((s) => s.fields.filter((f) => f.id !== fieldId && !f.archived))
-  const activities = useAppStore((s) => s.activities.filter((a) => a.fieldIds.includes(fieldId)))
+  const allFields = useAppStore((s) => s.fields)
+  const allActivities = useAppStore((s) => s.activities)
   const archiveField = useAppStore((s) => s.archiveField)
   const toast = useAppStore((s) => s.toast)
+
+  const field = allFields.find((f) => f.id === fieldId)
+  const otherFields = allFields.filter((f) => f.id !== fieldId && !f.archived)
+  const activities = allActivities.filter((a) => a.fieldIds.includes(fieldId))
 
   // Map activityId -> selected target field ids
   const [reassignMap, setReassignMap] = useState<Record<number, number[]>>({})

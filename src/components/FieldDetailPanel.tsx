@@ -365,11 +365,13 @@ function OtherActivitiesTab() {
 }
 
 function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: 'watering' | 'amendment' | 'other'; showEmpty?: boolean }) {
-  const activities = useAppStore((s) => s.activities.filter((a) => a.type === type && a.fieldIds.includes(fieldId)))
+  const allActivities = useAppStore((s) => s.activities)
   const removeActivity = useAppStore((s) => s.removeActivity)
   const openActivityForm = useAppStore((s) => s.openActivityForm)
   const field = useField()
-  const sorted = [...activities].sort((a, b) => b.date.localeCompare(a.date))
+  const sorted = allActivities
+    .filter((a) => a.type === type && a.fieldIds.includes(fieldId))
+    .sort((a, b) => b.date.localeCompare(a.date))
   const isArchived = !!field.archived
 
   if (!sorted.length) {

@@ -1,5 +1,6 @@
 import type { Field, LatLng } from '../types'
 import type { PersistedData } from './persistence'
+import { normalizePersistedData } from './persistence'
 
 interface ExportPoint {
   field: string
@@ -112,9 +113,10 @@ export function exportProject(data: PersistedData): boolean {
 
 export function parseProjectFile(content: string): PersistedData | null {
   try {
-    const data = JSON.parse(content) as PersistedData
-    if (!data.exploitPolygon && (!data.fields || data.fields.length === 0)) return null
-    return data
+    const raw = JSON.parse(content) as PersistedData
+    if (!raw.exploitPolygon && (!raw.fields || raw.fields.length === 0)) return null
+    // Apply defaults so older JSON files (without activities/agendaTasks/archived) load cleanly.
+    return normalizePersistedData(raw)
   } catch {
     return null
   }
