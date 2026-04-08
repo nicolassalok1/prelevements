@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import L from 'leaflet'
 import { useAppStore } from '../store/useAppStore'
+import { computeFieldRelief } from '../utils/terrain-auto'
 import type { FieldDetailTab, SeedType, IrrigationMethod, AmendmentType, Exposition } from '../types'
 
 const TABS: { key: FieldDetailTab; label: string }[] = [
@@ -454,12 +455,42 @@ function SoilTab() {
 function ReliefTab() {
   const field = useField()
   const updateField = useAppStore((s) => s.updateField)
+  const toast = useAppStore((s) => s.toast)
   const r = field.relief || { exposition: 'plat' as Exposition }
+  const [computing, setComputing] = useState(false)
 
   const update = (patch: Partial<typeof r>) => updateField(field.id, { relief: { ...r, ...patch } })
 
+  const handleAutoCompute = async () => {
+    setComputing(true)
+    try {
+      const { relief, warnings, sampleCount } = await computeFieldRelief(field)
+      updateField(field.id, { relief })
+      if (warnings.length > 0) {
+        toast(`⚠ Relief partiellement calculé (${sampleCount} pts) — ${warnings[0]}`, true)
+      } else {
+        toast(`✓ Relief calculé (${sampleCount} pts DEM)`)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+      toast(`⚠ ${msg}`, true)
+    } finally {
+      setComputing(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* Auto-compute button */}
+      <button
+        onClick={handleAutoCompute}
+        disabled={computing}
+        className="btn-cyan w-full text-[11px] py-2 disabled:opacity-50 disabled:cursor-wait"
+        title="Calcule automatiquement altitude, pente, exposition et ensoleillement à partir du polygone de la zone (Open-Meteo, gratuit)"
+      >
+        {computing ? '⏳ Calcul en cours…' : '✨ Calculer automatiquement'}
+      </button>
+
       <div>
         <Label>Exposition</Label>
         <select value={r.exposition} onChange={(e) => update({ exposition: e.target.value as Exposition })}
@@ -469,7 +500,7 @@ function ReliefTab() {
       </div>
       <div>
         <Label>Ensoleillement (h/jour)</Label>
-        <input type="number" value={r.sunlightHours || ''} placeholder="—" min={0} max={16} step={0.5}
+        <input type="number" value={r.sunlightHours ?? ''} placeholder="—" min={0} max={16} step={0.1}
           onChange={(e) => update({ sunlightHours: e.target.value ? parseFloat(e.target.value) : undefined })}
           className="w-full font-mono text-xs bg-bg border border-border text-text py-2 px-3 outline-none focus:border-olive-lit placeholder:text-muted" />
       </div>
@@ -488,7 +519,7 @@ function ReliefTab() {
         </div>
         <div>
           <Label>Pente (%)</Label>
-          <input type="number" value={r.slope ?? ''} placeholder="—" min={0} max={100}
+          <input type="number" value={r.slope ?? ''} placeholder="—" min={0} max={100} step={0.1}
             onChange={(e) => update({ slope: e.target.value ? parseFloat(e.target.value) : undefined })}
             className="w-full font-mono text-xs bg-bg border border-border text-text py-2 px-3 outline-none focus:border-olive-lit placeholder:text-muted" />
         </div>

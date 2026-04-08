@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import type { Employee, SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition } from '../types'
+import { computeFieldRelief } from '../utils/terrain-auto'
+import type { Employee, SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition, Field } from '../types'
 
 const NAV_ITEMS: { key: DashboardTab; icon: string; label: string }[] = [
   { key: 'overview', icon: '◈', label: 'Vue d\'ensemble' },
@@ -661,21 +662,94 @@ const EXPO_SUN: Record<Exposition, string> = {
 
 function ReliefTab() {
   const store = useAppStore()
+  const [computingId, setComputingId] = useState<number | null>(null)
+  const [computingAll, setComputingAll] = useState(false)
+
+  const activeFields = store.fields.filter((f) => !f.archived)
+
+  const computeOne = async (f: Field) => {
+    try {
+      const { relief, warnings, sampleCount } = await computeFieldRelief(f)
+      store.updateField(f.id, { relief })
+      if (warnings.length > 0) {
+        store.toast(`⚠ ${f.name}: ${warnings[0]}`, true)
+      } else {
+        store.toast(`✓ ${f.name} — relief calculé (${sampleCount} pts)`)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+      store.toast(`⚠ ${f.name}: ${msg}`, true)
+      throw e
+    }
+  }
+
+  const handleAutoOne = async (f: Field) => {
+    setComputingId(f.id)
+    try { await computeOne(f) } catch { /* toast already shown */ }
+    finally { setComputingId(null) }
+  }
+
+  const handleAutoAll = async () => {
+    setComputingAll(true)
+    let ok = 0
+    let fail = 0
+    for (const f of activeFields) {
+      setComputingId(f.id)
+      try {
+        await computeOne(f)
+        ok++
+      } catch {
+        fail++
+      }
+    }
+    setComputingId(null)
+    setComputingAll(false)
+    store.toast(
+      fail > 0
+        ? `Relief: ${ok} réussis · ${fail} échoués`
+        : `✓ Relief calculé pour ${ok} zone${ok > 1 ? 's' : ''}`,
+      fail > 0,
+    )
+  }
 
   return (
     <>
       <TabHeader title="Relief & Exposition" subtitle="Altitude, pente, orientation et ensoleillement par champ" />
 
+      {activeFields.length > 0 && (
+        <button
+          onClick={handleAutoAll}
+          disabled={computingAll}
+          className="btn-cyan w-full text-xs py-2 mb-4 disabled:opacity-50 disabled:cursor-wait"
+          title="Calcule le relief de toutes les zones actives via Open-Meteo"
+        >
+          {computingAll
+            ? `⏳ Calcul en cours (${activeFields.length} zones)…`
+            : `✨ Calculer automatiquement toutes les zones (${activeFields.length})`}
+        </button>
+      )}
+
       {store.fields.length > 0 ? (
         <div className="space-y-3">
           {store.fields.map((f) => {
             const r = f.relief || { exposition: 'plat' as Exposition }
+            const isComputing = computingId === f.id
             return (
               <div key={f.id} className="bg-bg border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: f.color }} />
                   <span className="font-mono text-xs text-text font-bold flex-1">{f.name}</span>
                   <span className="font-mono text-[9px] text-muted">{f.area.toFixed(2)} ha</span>
+                  {!f.archived && (
+                    <button
+                      onClick={() => handleAutoOne(f)}
+                      disabled={isComputing || computingAll}
+                      className="font-mono text-[10px] px-2 py-0.5 border border-cyan text-cyan hover:bg-cyan/20 bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                      title="Calculer relief via Open-Meteo"
+                    >
+                      {isComputing ? '⏳' : '✨ Auto'}
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-3">
