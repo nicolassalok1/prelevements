@@ -42,6 +42,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
   fields: [], fieldIdCounter: 0, selectedFieldId: null,
   drawTarget: null, editTarget: null, addPointFieldId: null, generationMethod: 'grid', density: 1,
+  userLocation: null, geolocationActive: false, geolocationError: null,
   employees: [], employeeIdCounter: 0, strains: [],
   wateringLog: [], wateringIdCounter: 0,
   amendmentLog: [], amendmentIdCounter: 0,
@@ -156,6 +157,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ fields: s.fields.map((f) => f.id === fieldId ? { ...f, latlngs, area, perimeter } : f) }))
     persist(get())
   },
+  setUserLocation: (loc) => set({ userLocation: loc }),
+  setGeolocationActive: (active) => set({ geolocationActive: active }),
+  setGeolocationError: (err) => set({ geolocationError: err }),
   setGenerationMethod: (method) => { set({ generationMethod: method }); persist(get()) },
   setDensity: (density) => { set({ density }); persist(get()) },
 

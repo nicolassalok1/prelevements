@@ -10,6 +10,22 @@ export interface SamplingPoint {
   lat: number
   lng: number
   notes?: string
+  altitude?: number          // mètres (WGS84) — optionnel, présent si point ajouté via GPS
+  altitudeAccuracy?: number  // mètres (incertitude verticale)
+  accuracy?: number          // mètres (incertitude horizontale)
+}
+
+// ── Géolocalisation utilisateur ──
+
+export interface UserLocation {
+  lat: number
+  lng: number
+  accuracy: number              // mètres (rayon d'incertitude horizontale)
+  altitude: number | null       // mètres WGS84 (null si non disponible)
+  altitudeAccuracy: number | null
+  heading: number | null        // degrés (null si immobile)
+  speed: number | null          // m/s (null si non disponible)
+  timestamp: number             // ms epoch
 }
 
 // ── Cultures ──
@@ -176,6 +192,11 @@ export interface AppState {
   editTarget: EditTarget
   addPointFieldId: number | null  // when set, clicking map adds point to this field
 
+  // Geolocation (runtime only — not persisted)
+  userLocation: UserLocation | null
+  geolocationActive: boolean
+  geolocationError: string | null
+
   // Generation config
   generationMethod: GenerationMethod
   density: number
@@ -240,6 +261,9 @@ export interface AppState {
   updateFieldPolygon: (fieldId: number, latlngs: LatLng[], area: number, perimeter: number) => void
   setAddPointFieldId: (fieldId: number | null) => void
   addManualPoint: (fieldId: number, point: SamplingPoint, marker: L.Marker) => void
+  setUserLocation: (loc: UserLocation | null) => void
+  setGeolocationActive: (active: boolean) => void
+  setGeolocationError: (err: string | null) => void
   renamePoint: (fieldId: number, pointIndex: number, newLabel: string) => void
   setGenerationMethod: (method: GenerationMethod) => void
   setDensity: (density: number) => void

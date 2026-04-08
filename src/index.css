@@ -114,6 +114,42 @@ body {
   display: none !important;
 }
 
+/* User location marker (live GPS position) */
+.user-location-marker {
+  position: relative;
+  width: 22px;
+  height: 22px;
+}
+.user-location-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.9), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+.user-location-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 50%;
+  animation: user-location-pulse 1.8s ease-out infinite;
+  z-index: 1;
+}
+@keyframes user-location-pulse {
+  0%   { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }

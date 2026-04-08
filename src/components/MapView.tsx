@@ -4,7 +4,8 @@ import 'leaflet-draw'
 import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
 import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromStorage } from '../utils/persistence'
-import type { LatLng, Field } from '../types'
+import { GeolocationControl } from './GeolocationControl'
+import type { LatLng, Field, UserLocation } from '../types'
 
 // Module-level ref so other components can interact with the map programmatically.
 // Use getMap() to access it — don't read `globalMap` directly from other modules.
@@ -36,6 +37,42 @@ export function addPointFromCoords(fieldId: number, lat: number, lng: number, no
   return { ok: true }
 }
 
+/**
+ * Add a sampling point at the user's current GPS position.
+ * Captures altitude and accuracy if provided by the device.
+ */
+export function addPointFromUserLocation(fieldId: number, loc: UserLocation, notes?: string): { ok: boolean; error?: string } {
+  const map = globalMap
+  if (!map) return { ok: false, error: 'Carte non prête' }
+  const store = useAppStore.getState()
+  const field = store.fields.find((f) => f.id === fieldId)
+  if (!field) return { ok: false, error: 'Champ introuvable' }
+  if (!isInsidePolygon({ lat: loc.lat, lng: loc.lng }, field.latlngs)) {
+    return { ok: false, error: 'Vous êtes hors du champ' }
+  }
+
+  const ptNum = field.points.length + 1
+  const label = 'P' + String(ptNum).padStart(3, '0')
+  const icon = createPointIcon(field.color, label)
+  const altText = loc.altitude != null
+    ? `<br>Alt: ${loc.altitude.toFixed(1)} m${loc.altitudeAccuracy != null ? ` (±${loc.altitudeAccuracy.toFixed(0)} m)` : ''}`
+    : ''
+  const marker = L.marker([loc.lat, loc.lng], { icon })
+    .addTo(map)
+    .bindPopup(`<b>${label}</b><br>${field.name}<br>Lat: ${loc.lat.toFixed(6)}<br>Lng: ${loc.lng.toFixed(6)}${altText}<br>Précision: ±${loc.accuracy.toFixed(0)} m${notes ? `<br><i>${notes}</i>` : ''}`)
+
+  store.addManualPoint(fieldId, {
+    label,
+    lat: loc.lat,
+    lng: loc.lng,
+    notes: notes || undefined,
+    altitude: loc.altitude ?? undefined,
+    altitudeAccuracy: loc.altitudeAccuracy ?? undefined,
+    accuracy: loc.accuracy,
+  }, marker)
+  return { ok: true }
+}
+
 export function MapView() {
   const mapRef = useRef<L.Map | null>(null)
   const drawnRef = useRef<L.FeatureGroup | null>(null)
@@ -48,6 +85,12 @@ export function MapView() {
 
   const editTarget = useAppStore((s) => s.editTarget)
   const addPointFieldId = useAppStore((s) => s.addPointFieldId)
+  const userLocation = useAppStore((s) => s.userLocation)
+
+  // User location layer refs
+  const userMarkerRef = useRef<L.Marker | null>(null)
+  const accuracyCircleRef = useRef<L.Circle | null>(null)
+  const firstFixRef = useRef(true)
 
   // Crosshair cursor when in add-point mode
   useEffect(() => {
@@ -244,6 +287,56 @@ export function MapView() {
     }
   }, [editTarget])
 
+  // React to user location updates: render/update the blue marker and accuracy circle
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    if (!userLocation) {
+      // Cleanup when geolocation is disabled
+      userMarkerRef.current?.remove()
+      userMarkerRef.current = null
+      accuracyCircleRef.current?.remove()
+      accuracyCircleRef.current = null
+      firstFixRef.current = true
+      return
+    }
+
+    const latlng: [number, number] = [userLocation.lat, userLocation.lng]
+
+    if (!userMarkerRef.current) {
+      const icon = L.divIcon({
+        html: '<div class="user-location-marker"><div class="user-location-pulse"></div><div class="user-location-dot"></div></div>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        className: '',
+      })
+      userMarkerRef.current = L.marker(latlng, { icon, interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map)
+    } else {
+      userMarkerRef.current.setLatLng(latlng)
+    }
+
+    if (!accuracyCircleRef.current) {
+      accuracyCircleRef.current = L.circle(latlng, {
+        radius: userLocation.accuracy,
+        color: '#3b82f6',
+        weight: 1,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.12,
+        interactive: false,
+      }).addTo(map)
+    } else {
+      accuracyCircleRef.current.setLatLng(latlng)
+      accuracyCircleRef.current.setRadius(userLocation.accuracy)
+    }
+
+    // Auto-zoom on first fix only
+    if (firstFixRef.current) {
+      firstFixRef.current = false
+      map.setView(latlng, Math.max(map.getZoom(), 18), { animate: true })
+    }
+  }, [userLocation])
+
   function stopDraw() {
     if (drawHandlerRef.current) {
       try { drawHandlerRef.current.disable() } catch { /* ignore */ }
@@ -251,7 +344,12 @@ export function MapView() {
     }
   }
 
-  return <div ref={containerRef} className="w-full h-full bg-bg" />
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full bg-bg" />
+      <GeolocationControl />
+    </div>
+  )
 }
 
 // ── Handlers ──
