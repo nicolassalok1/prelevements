@@ -36,23 +36,40 @@ export class TerrainApiError extends Error {
 
 /**
  * Fetch elevations for a list of points. Batches requests if there are
- * more than {@link ELEVATION_BATCH_SIZE} points. Preserves input order.
+ * more than {@link ELEVATION_BATCH_SIZE} points, running batches in
+ * parallel via Promise.all so dense grids (thousands of points) stay
+ * responsive. Preserves input order.
  *
  * @throws {@link TerrainApiError} on any network / HTTP / parsing failure.
  */
 export async function fetchElevations(points: LatLng[]): Promise<ReliefSample[]> {
   if (points.length === 0) return []
 
-  const samples: ReliefSample[] = []
-
+  // Split into batches preserving index ranges.
+  const batches: Array<{ offset: number; points: LatLng[] }> = []
   for (let i = 0; i < points.length; i += ELEVATION_BATCH_SIZE) {
-    const batch = points.slice(i, i + ELEVATION_BATCH_SIZE)
-    const elevations = await fetchElevationBatch(batch)
-    batch.forEach((p, idx) => {
-      samples.push({ lat: p.lat, lng: p.lng, altitude: elevations[idx] })
-    })
+    batches.push({ offset: i, points: points.slice(i, i + ELEVATION_BATCH_SIZE) })
   }
 
+  // Run all batches in parallel. Open-Meteo has generous rate limits
+  // (10k calls/day on the free tier) and the shared HTTP/2 connection
+  // keeps the actual overhead minimal. If rate-limiting becomes an
+  // issue we can switch to a bounded-concurrency queue.
+  const results = await Promise.all(
+    batches.map(async (b) => {
+      const elevations = await fetchElevationBatch(b.points)
+      return { offset: b.offset, elevations }
+    }),
+  )
+
+  // Reassemble in original order.
+  const samples: ReliefSample[] = new Array(points.length)
+  for (const { offset, elevations } of results) {
+    for (let k = 0; k < elevations.length; k++) {
+      const p = points[offset + k]
+      samples[offset + k] = { lat: p.lat, lng: p.lng, altitude: elevations[k] }
+    }
+  }
   return samples
 }
 

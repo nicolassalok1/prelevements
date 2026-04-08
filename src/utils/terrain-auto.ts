@@ -160,13 +160,14 @@ export interface FieldElevationGrid {
 /**
  * Pick a grid resolution adapted to the field area. Balances visual
  * quality of the 3D surface against API batch count (each batch = 100
- * points max, ~0.5-1 s per batch on Open-Meteo Elevation).
+ * points max). Batches are now fetched in parallel so a larger grid
+ * is still fast.
  */
 export function adaptiveGridSize(areaHa: number): number {
-  if (areaHa < 0.5) return 16
-  if (areaHa < 2) return 20
-  if (areaHa < 10) return 25
-  return 30
+  if (areaHa < 0.5) return 32   // 1024 pts — ~10 parallel batches
+  if (areaHa < 2) return 40     // 1600 pts — ~16 parallel batches
+  if (areaHa < 10) return 48    // 2304 pts — ~23 parallel batches
+  return 56                     // 3136 pts — ~32 parallel batches
 }
 
 /**

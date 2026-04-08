@@ -118,7 +118,7 @@ export function sampleFieldPoints(latlngs: LatLng[], target: number): LatLng[] {
  * continuously without holes. Polygon membership is surfaced via `inside`.
  *
  * @param latlngs Field polygon (>= 3 points, unclosed ring).
- * @param n       Grid resolution (n×n cells). Clamped to [8, 40].
+ * @param n       Grid resolution (n×n cells). Clamped to [8, 60].
  */
 export function sampleBoundingBoxGrid(
   latlngs: LatLng[],
@@ -127,7 +127,7 @@ export function sampleBoundingBoxGrid(
   if (latlngs.length < 3) {
     return { points: [], width: 0, height: 0, inside: [] }
   }
-  const size = clamp(Math.round(n), 8, 40)
+  const size = clamp(Math.round(n), 8, 60)
 
   const lats = latlngs.map((p) => p.lat)
   const lngs = latlngs.map((p) => p.lng)
