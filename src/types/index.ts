@@ -147,7 +147,7 @@ export type EditTarget = { type: 'exploit' } | { type: 'field'; fieldId: number 
 export type GenerationMethod = 'grid' | 'zigzag' | 'random'
 
 export type DashboardTab = 'overview' | 'cultures' | 'personnel' | 'agenda' | 'watering' | 'amendments' | 'soil' | 'relief'
-export type FieldDetailTab = 'info' | 'culture' | 'personnel' | 'watering' | 'amendments' | 'soil' | 'relief'
+export type FieldDetailTab = 'info' | 'culture' | 'personnel' | 'watering' | 'amendments' | 'other' | 'soil' | 'relief'
 
 export interface AppState {
   // Exploitation

@@ -9,6 +9,7 @@ const TABS: { key: FieldDetailTab; label: string }[] = [
   { key: 'personnel', label: 'Équipe' },
   { key: 'watering', label: 'Arrosage' },
   { key: 'amendments', label: 'Engrais' },
+  { key: 'other', label: 'Autres' },
   { key: 'soil', label: 'Sol' },
   { key: 'relief', label: 'Relief' },
 ]
@@ -56,6 +57,7 @@ export function FieldDetailPanel() {
           {tab === 'personnel' && <PersonnelTab />}
           {tab === 'watering' && <WateringTab />}
           {tab === 'amendments' && <AmendmentsTab />}
+          {tab === 'other' && <OtherActivitiesTab />}
           {tab === 'soil' && <SoilTab />}
           {tab === 'relief' && <ReliefTab />}
         </div>
@@ -318,6 +320,9 @@ function WateringTab() {
           </div>
         ) : <Empty text="Aucun arrosage pour ce champ." />}
       </div>
+
+      {/* Activities (from calendar) */}
+      <ActivityList fieldId={field.id} type="watering" />
     </div>
   )
 }
@@ -390,6 +395,85 @@ function AmendmentsTab() {
             ))}
           </div>
         ) : <Empty text="Aucun amendement pour ce champ." />}
+      </div>
+
+      {/* Activities (from calendar) */}
+      <ActivityList fieldId={field.id} type="amendment" />
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════
+//  AUTRES ACTIVITÉS
+// ═══════════════════════════════════════
+
+function OtherActivitiesTab() {
+  const field = useField()
+  const isArchived = !!field.archived
+  const openActivityForm = useAppStore((s) => s.openActivityForm)
+  return (
+    <div className="space-y-4">
+      {!isArchived && (
+        <button className="btn-active w-full text-[11px] py-2" onClick={() => openActivityForm(new Date().toISOString().slice(0, 10), null)}>
+          + Nouvelle activité (via calendrier)
+        </button>
+      )}
+      <ActivityList fieldId={field.id} type="other" showEmpty />
+    </div>
+  )
+}
+
+function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: 'watering' | 'amendment' | 'other'; showEmpty?: boolean }) {
+  const activities = useAppStore((s) => s.activities.filter((a) => a.type === type && a.fieldIds.includes(fieldId)))
+  const removeActivity = useAppStore((s) => s.removeActivity)
+  const openActivityForm = useAppStore((s) => s.openActivityForm)
+  const field = useField()
+  const sorted = [...activities].sort((a, b) => b.date.localeCompare(a.date))
+  const isArchived = !!field.archived
+
+  if (!sorted.length) {
+    if (showEmpty) return <Empty text="Aucune activité pour ce champ." />
+    return null
+  }
+
+  const typeLabel = type === 'watering' ? 'arrosages' : type === 'amendment' ? 'engrais' : 'activités'
+
+  return (
+    <div>
+      <Label>Activités — {typeLabel} ({sorted.length})</Label>
+      <div className={`space-y-1 mt-1 ${isArchived ? 'opacity-60' : ''}`}>
+        {sorted.map((a) => (
+          <div key={a.id} className="border border-border p-2 hover:bg-olive/5 transition-colors">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-[10px] text-muted">{a.date}</span>
+              {a.type === 'watering' && a.watering && (
+                <>
+                  <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{IRRIGATION_LABELS[a.watering.method]}</span>
+                  <span className="font-mono text-xs text-cyan">{a.watering.durationMin} min</span>
+                  {a.watering.volumeL != null && <span className="font-mono text-xs text-muted">{a.watering.volumeL} L</span>}
+                </>
+              )}
+              {a.type === 'amendment' && a.amendment && (
+                <>
+                  <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{AMENDMENT_LABELS[a.amendment.type]}</span>
+                  <span className="font-mono text-xs text-amber">{a.amendment.product}</span>
+                  <span className="font-mono text-xs text-olive-lit">{a.amendment.quantityKg} kg</span>
+                </>
+              )}
+              {a.type === 'other' && a.other && (
+                <span className="font-mono text-xs text-amber font-bold">{a.other.title}</span>
+              )}
+              <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+              {!isArchived && (
+                <>
+                  <button onClick={() => openActivityForm(a.date, a.id)} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
+                  <button onClick={() => { if (confirm('Supprimer cette activité ?')) removeActivity(a.id) }} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs" title="Supprimer">✕</button>
+                </>
+              )}
+            </div>
+            {a.notes && <div className="font-mono text-[10px] text-muted mt-1 border-t border-border/30 pt-1 italic">{a.notes}</div>}
+          </div>
+        ))}
       </div>
     </div>
   )

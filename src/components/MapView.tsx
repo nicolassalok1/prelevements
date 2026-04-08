@@ -6,6 +6,29 @@ import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromStorage } from '../utils/persistence'
 import type { LatLng, Field } from '../types'
 
+// Module-level ref so other components can add points programmatically
+let globalMap: L.Map | null = null
+
+export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
+  const map = globalMap
+  if (!map) return { ok: false, error: 'Carte non prête' }
+  const store = useAppStore.getState()
+  const field = store.fields.find((f) => f.id === fieldId)
+  if (!field) return { ok: false, error: 'Champ introuvable' }
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return { ok: false, error: 'Coordonnées invalides' }
+  if (!isInsidePolygon({ lat, lng }, field.latlngs)) return { ok: false, error: 'Point hors du champ' }
+
+  const ptNum = field.points.length + 1
+  const label = 'P' + String(ptNum).padStart(3, '0')
+  const icon = createPointIcon(field.color, label)
+  const marker = L.marker([lat, lng], { icon })
+    .addTo(map)
+    .bindPopup(`<b>${label}</b><br>${field.name}<br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}${notes ? `<br><i>${notes}</i>` : ''}`)
+
+  store.addManualPoint(fieldId, { label, lat, lng, notes: notes || undefined }, marker)
+  return { ok: true }
+}
+
 export function MapView() {
   const mapRef = useRef<L.Map | null>(null)
   const drawnRef = useRef<L.FeatureGroup | null>(null)
@@ -111,6 +134,10 @@ export function MapView() {
         return
       }
 
+      // Read notes from the sidebar input (if present)
+      const notesInput = document.getElementById('point-notes-input') as HTMLInputElement | null
+      const notes = notesInput?.value.trim() || undefined
+
       const ptNum = field.points.length + 1
       const label = 'P' + String(ptNum).padStart(3, '0')
 
@@ -118,13 +145,15 @@ export function MapView() {
 
       const marker = L.marker(latlng, { icon })
         .addTo(map)
-        .bindPopup(`<b>${label}</b><br>${field.name}<br>Lat: ${latlng.lat.toFixed(6)}<br>Lng: ${latlng.lng.toFixed(6)}`)
+        .bindPopup(`<b>${label}</b><br>${field.name}<br>Lat: ${latlng.lat.toFixed(6)}<br>Lng: ${latlng.lng.toFixed(6)}${notes ? `<br><i>${notes}</i>` : ''}`)
 
-      store.addManualPoint(fieldId, { label, lat: latlng.lat, lng: latlng.lng }, marker)
+      store.addManualPoint(fieldId, { label, lat: latlng.lat, lng: latlng.lng, notes }, marker)
       store.toast(`✓ ${label} ajouté dans "${field.name}"`)
+      if (notesInput) notesInput.value = ''
     })
 
     mapRef.current = map
+    globalMap = map
 
     // Restore persisted data
     restorePersistedData(map)
@@ -132,6 +161,7 @@ export function MapView() {
     return () => {
       map.remove()
       mapRef.current = null
+      globalMap = null
     }
   }, [])
 
@@ -356,7 +386,7 @@ function restorePersistedData(map: L.Map) {
       const leafletLatLngs = sf.latlngs.map((ll) => L.latLng(ll.lat, ll.lng))
       const layer = L.polygon(leafletLatLngs, {
         color: sf.color, weight: 2, fillColor: sf.color, fillOpacity: 0.15,
-      }).addTo(map)
+      })
 
       layer.on('click', () => {
         useAppStore.getState().selectField(sf.id)
@@ -369,14 +399,20 @@ function restorePersistedData(map: L.Map) {
           html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:${sf.color};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap">${sf.name}</div>`,
           iconSize: [0, 0], className: '',
         }),
-      }).addTo(map)
+      })
 
       // Restore point markers
       const pointMarkers = sf.points.map((pt) => {
         return L.marker([pt.lat, pt.lng], { icon: createPointIcon(sf.color, pt.label) })
-          .addTo(map)
-          .bindPopup(`<b>${pt.label}</b><br>${sf.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}`)
+          .bindPopup(`<b>${pt.label}</b><br>${sf.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}${pt.notes ? `<br><i>${pt.notes}</i>` : ''}`)
       })
+
+      // Only add to map if not archived (archived zones are hidden by default, shown via toggle)
+      if (!sf.archived) {
+        layer.addTo(map)
+        labelMarker.addTo(map)
+        pointMarkers.forEach((m) => m.addTo(map))
+      }
 
       const field: Field = {
         id: sf.id,
@@ -389,6 +425,10 @@ function restorePersistedData(map: L.Map) {
         culture: sf.culture,
         assignedEmployees: sf.assignedEmployees || [],
         assignedManager: sf.assignedManager ?? null,
+        relief: sf.relief,
+        archived: sf.archived,
+        archivedAt: sf.archivedAt,
+        archivedVisible: false,
         layer,
         labelMarker,
         pointMarkers,

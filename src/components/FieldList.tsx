@@ -2,10 +2,13 @@ import { useState } from 'react'
 import L from 'leaflet'
 import { useAppStore } from '../store/useAppStore'
 import { calcArea, calcPerimeter } from '../utils/geometry'
+import { addPointFromCoords } from './MapView'
+import { ArchiveFieldModal } from './ArchiveFieldModal'
 import type { Field, LatLng } from '../types'
 
 export function FieldList() {
-  const fields = useAppStore((s) => s.fields)
+  const allFields = useAppStore((s) => s.fields)
+  const fields = allFields.filter((f) => !f.archived)
   const selectedFieldId = useAppStore((s) => s.selectedFieldId)
   const selectField = useAppStore((s) => s.selectField)
   const exploitPolygon = useAppStore((s) => s.exploitPolygon)
@@ -43,6 +46,7 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(f.name)
   const [pointsVisible, setPointsVisible] = useState(true)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const updateField = useAppStore((s) => s.updateField)
   const editTarget = useAppStore((s) => s.editTarget)
   const isEditingThis = editTarget?.type === 'field' && editTarget.fieldId === f.id
@@ -140,6 +144,7 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
         {f.area.toFixed(2)} ha · {Math.round(f.perimeter)} m
       </div>
       <FieldMeta field={f} employees={employees} />
+      {addingPointHere && <AddPointInputs fieldId={f.id} />}
       <div className="flex gap-1 mt-1.5 flex-wrap">
         {isEditingThis ? (
           <>
@@ -187,6 +192,10 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
               onClick={(e) => { e.stopPropagation(); useAppStore.getState().setEditTarget({ type: 'field', fieldId: f.id }) }}>
               ✎
             </button>
+            <button className="btn-sm btn-cyan" title="Archiver cette zone"
+              onClick={(e) => { e.stopPropagation(); setArchiveOpen(true) }}>
+              ◱
+            </button>
             <button className="btn-sm btn-danger" title="Supprimer ce champ et tous ses points"
               onClick={(e) => { e.stopPropagation(); handleDelete() }}>
               ✕
@@ -194,6 +203,7 @@ function FieldCard({ field: f, isSelected, onSelect, employees }: {
           </>
         )}
       </div>
+      {archiveOpen && <ArchiveFieldModal fieldId={f.id} onClose={() => setArchiveOpen(false)} />}
     </div>
   )
 }
@@ -257,6 +267,43 @@ function PointRow({ field: f, point: pt, index: i }: { field: Field; point: { la
         title="Supprimer le point"
       >
         ✕
+      </button>
+    </div>
+  )
+}
+
+function AddPointInputs({ fieldId }: { fieldId: number }) {
+  const [lat, setLat] = useState('')
+  const [lng, setLng] = useState('')
+  const [notes, setNotes] = useState('')
+  const toast = useAppStore((s) => s.toast)
+
+  const handleSave = () => {
+    const latN = parseFloat(lat)
+    const lngN = parseFloat(lng)
+    if (Number.isNaN(latN) || Number.isNaN(lngN)) { toast('⚠ Coordonnées invalides', true); return }
+    const res = addPointFromCoords(fieldId, latN, lngN, notes.trim() || undefined)
+    if (!res.ok) { toast(`⚠ ${res.error}`, true); return }
+    toast('✓ Point ajouté')
+    setLat(''); setLng(''); setNotes('')
+  }
+
+  return (
+    <div className="mt-2 p-2 bg-bg border border-amber/40 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+      <div className="font-mono text-[9px] text-amber uppercase tracking-[1px]">Ajout point — clic carte OU coordonnées</div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <input type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)}
+          placeholder="Latitude"
+          className="font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-amber placeholder:text-muted w-0 min-w-full" />
+        <input type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)}
+          placeholder="Longitude"
+          className="font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-amber placeholder:text-muted w-0 min-w-full" />
+      </div>
+      <input id="point-notes-input" type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
+        placeholder="Notes (optionnel)"
+        className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-amber placeholder:text-muted" />
+      <button className="btn-sm btn-amber w-full text-[10px]" onClick={handleSave}>
+        ✓ Enregistrer point (coordonnées)
       </button>
     </div>
   )
