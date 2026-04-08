@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import L from 'leaflet'
 import { useAppStore } from '../store/useAppStore'
 import { computeFieldRelief } from '../utils/terrain-auto'
+import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import type { FieldDetailTab, SeedType, IrrigationMethod, AmendmentType, Exposition } from '../types'
 
 const TABS: { key: FieldDetailTab; label: string }[] = [
@@ -458,6 +459,20 @@ function ReliefTab() {
   const toast = useAppStore((s) => s.toast)
   const r = field.relief || { exposition: 'plat' as Exposition }
   const [computing, setComputing] = useState(false)
+
+  // Auto-trigger relief compute the first time the user opens this tab on a
+  // zone that has no relief yet — handles legacy fields (created before the
+  // auto-compute was wired) and fields loaded from older JSON snapshots.
+  // The trigger helper skips silently if relief is already set or if the
+  // user has manually locked it, so this effect is a cheap no-op otherwise.
+  useEffect(() => {
+    if (field.relief === undefined) {
+      void triggerAutoReliefIfNeeded(field.id)
+    }
+    // Depend on the id only — not on `field.relief` — so that re-renders
+    // triggered by the compute result itself don't re-fire the effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [field.id])
 
   // Any manual edit clears the autoComputed flag → locks the relief against
   // future background recomputations (e.g. after a polygon edit).

@@ -18,9 +18,15 @@ const ELEVATION_BATCH_SIZE = 100  // Open-Meteo hard limit per request
 
 /** Unified error type for all network/parsing failures in this module. */
 export class TerrainApiError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  // Declared as an explicit field rather than a parameter-property so the
+  // code stays compatible with TypeScript's `erasableSyntaxOnly` flag
+  // (parameter-properties are not pure-JS-erasable).
+  readonly cause?: unknown
+
+  constructor(message: string, cause?: unknown) {
     super(message)
     this.name = 'TerrainApiError'
+    this.cause = cause
   }
 }
 
