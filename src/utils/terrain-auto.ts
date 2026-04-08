@@ -93,6 +93,7 @@ export async function computeFieldRelief(
       sunshineHours != null
         ? round(sunshineHours, 1)
         : field.relief?.sunlightHours, // preserve existing value on degraded fetch
+    autoComputed: true,
   }
 
   return { relief, warnings, sampleCount: stats.sampleCount }

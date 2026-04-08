@@ -4,6 +4,7 @@ import 'leaflet-draw'
 import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
 import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromStorage } from '../utils/persistence'
+import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import { GeolocationControl } from './GeolocationControl'
 import type { LatLng, Field, UserLocation } from '../types'
 
@@ -444,6 +445,10 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
   if (input) input.value = ''
   store.setStatus(`CHAMP "${name.toUpperCase()}" AJOUTÉ`)
   store.toast(`✓ "${name}" ajouté — ${area.toFixed(2)} ha`)
+
+  // Background auto-compute relief (altitude, slope, exposition, sunshine)
+  // for the newly created field. Silently skipped if offline.
+  void triggerAutoReliefIfNeeded(field.id)
 }
 
 // ── Point icon ──

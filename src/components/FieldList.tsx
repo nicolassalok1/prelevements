@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore'
 import { calcArea, calcPerimeter } from '../utils/geometry'
 import { addPointFromCoords } from './MapView'
 import { ArchiveFieldModal } from './ArchiveFieldModal'
+import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import type { Field, LatLng } from '../types'
 
 export function FieldList() {
@@ -159,6 +160,9 @@ function FieldCard({ field: f, isSelected, onSelect }: {
                 }
                 useAppStore.getState().setEditTarget(null)
                 useAppStore.getState().toast(`✓ Contour de "${f.name}" mis à jour`)
+                // Polygon changed → background recompute, skipped if user
+                // has manually overridden relief (autoComputed flag).
+                void triggerAutoReliefIfNeeded(f.id)
               }}>
               ✓ Valider
             </button>

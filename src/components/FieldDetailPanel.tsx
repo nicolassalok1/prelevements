@@ -459,7 +459,10 @@ function ReliefTab() {
   const r = field.relief || { exposition: 'plat' as Exposition }
   const [computing, setComputing] = useState(false)
 
-  const update = (patch: Partial<typeof r>) => updateField(field.id, { relief: { ...r, ...patch } })
+  // Any manual edit clears the autoComputed flag → locks the relief against
+  // future background recomputations (e.g. after a polygon edit).
+  const update = (patch: Partial<typeof r>) =>
+    updateField(field.id, { relief: { ...r, ...patch, autoComputed: false } })
 
   const handleAutoCompute = async () => {
     setComputing(true)
@@ -479,17 +482,30 @@ function ReliefTab() {
     }
   }
 
+  const isAuto = field.relief?.autoComputed === true
+  const hasRelief = field.relief !== undefined
+
   return (
     <div className="space-y-4">
-      {/* Auto-compute button */}
-      <button
-        onClick={handleAutoCompute}
-        disabled={computing}
-        className="btn-cyan w-full text-[11px] py-2 disabled:opacity-50 disabled:cursor-wait"
-        title="Calcule automatiquement altitude, pente, exposition et ensoleillement à partir du polygone de la zone (Open-Meteo, gratuit)"
-      >
-        {computing ? '⏳ Calcul en cours…' : '✨ Calculer automatiquement'}
-      </button>
+      {/* Auto-compute button + status badge */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleAutoCompute}
+          disabled={computing}
+          className="btn-cyan flex-1 text-[11px] py-2 disabled:opacity-50 disabled:cursor-wait"
+          title="Calcule altitude, pente, exposition et ensoleillement à partir du polygone (Open-Meteo, gratuit)"
+        >
+          {computing ? '⏳ Calcul…' : hasRelief ? '✨ Recalculer' : '✨ Calculer automatiquement'}
+        </button>
+        {hasRelief && (
+          <span
+            className={`font-mono text-[9px] px-2 py-1 border ${isAuto ? 'text-cyan border-cyan/60' : 'text-amber border-amber/60'}`}
+            title={isAuto ? 'Valeurs calculées automatiquement — seront mises à jour si vous modifiez le contour' : 'Valeurs modifiées manuellement — ne seront plus recalculées automatiquement'}
+          >
+            {isAuto ? 'AUTO' : 'MANUEL'}
+          </span>
+        )}
+      </div>
 
       <div>
         <Label>Exposition</Label>

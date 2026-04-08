@@ -143,6 +143,13 @@ export interface ReliefInfo {
   slope?: number         // pente en %
   exposition: Exposition
   sunlightHours?: number // heures d'ensoleillement moyen / jour
+  /**
+   * True when the values were populated by the background auto-compute pipeline
+   * (Open-Meteo DEM + sunshine). Cleared to false as soon as the user edits
+   * any field manually in the UI — this locks the relief against further
+   * automatic overwrites (e.g. after a polygon edit).
+   */
+  autoComputed?: boolean
 }
 
 // ── Fields ──

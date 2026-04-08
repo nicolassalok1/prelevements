@@ -734,6 +734,10 @@ function ReliefTab() {
           {store.fields.map((f) => {
             const r = f.relief || { exposition: 'plat' as Exposition }
             const isComputing = computingId === f.id
+            // Manual edits always clear autoComputed → locks the zone against
+            // background re-runs on polygon edit or global recompute.
+            const updateManual = (patch: Partial<typeof r>) =>
+              store.updateField(f.id, { relief: { ...r, ...patch, autoComputed: false } })
             return (
               <div key={f.id} className="bg-bg border border-border p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -756,7 +760,7 @@ function ReliefTab() {
                   <div>
                     <label className="block text-[9px] text-muted uppercase tracking-[.5px] mb-1">Exposition</label>
                     <select value={r.exposition}
-                      onChange={(e) => store.updateField(f.id, { relief: { ...r, exposition: e.target.value as Exposition } })}
+                      onChange={(e) => updateManual({ exposition: e.target.value as Exposition })}
                       className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
                       {Object.entries(EXPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
@@ -764,9 +768,9 @@ function ReliefTab() {
                   <div>
                     <label className="block text-[9px] text-muted uppercase tracking-[.5px] mb-1">Ensoleillement</label>
                     <div className="flex items-center gap-2">
-                      <input type="number" value={r.sunlightHours || ''} placeholder="—"
-                        onChange={(e) => store.updateField(f.id, { relief: { ...r, sunlightHours: e.target.value ? parseFloat(e.target.value) : undefined } })}
-                        className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" min={0} max={16} step={0.5} />
+                      <input type="number" value={r.sunlightHours ?? ''} placeholder="—"
+                        onChange={(e) => updateManual({ sunlightHours: e.target.value ? parseFloat(e.target.value) : undefined })}
+                        className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" min={0} max={16} step={0.1} />
                       <span className="text-[9px] text-muted">h/jour</span>
                     </div>
                   </div>
@@ -777,7 +781,7 @@ function ReliefTab() {
                     <label className="block text-[9px] text-muted uppercase tracking-[.5px] mb-1">Alt. min</label>
                     <div className="flex items-center gap-1">
                       <input type="number" value={r.altitudeMin ?? ''} placeholder="—"
-                        onChange={(e) => store.updateField(f.id, { relief: { ...r, altitudeMin: e.target.value ? parseFloat(e.target.value) : undefined } })}
+                        onChange={(e) => updateManual({ altitudeMin: e.target.value ? parseFloat(e.target.value) : undefined })}
                         className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
                       <span className="text-[9px] text-muted">m</span>
                     </div>
@@ -786,7 +790,7 @@ function ReliefTab() {
                     <label className="block text-[9px] text-muted uppercase tracking-[.5px] mb-1">Alt. max</label>
                     <div className="flex items-center gap-1">
                       <input type="number" value={r.altitudeMax ?? ''} placeholder="—"
-                        onChange={(e) => store.updateField(f.id, { relief: { ...r, altitudeMax: e.target.value ? parseFloat(e.target.value) : undefined } })}
+                        onChange={(e) => updateManual({ altitudeMax: e.target.value ? parseFloat(e.target.value) : undefined })}
                         className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
                       <span className="text-[9px] text-muted">m</span>
                     </div>
@@ -795,7 +799,7 @@ function ReliefTab() {
                     <label className="block text-[9px] text-muted uppercase tracking-[.5px] mb-1">Pente</label>
                     <div className="flex items-center gap-1">
                       <input type="number" value={r.slope ?? ''} placeholder="—"
-                        onChange={(e) => store.updateField(f.id, { relief: { ...r, slope: e.target.value ? parseFloat(e.target.value) : undefined } })}
+                        onChange={(e) => updateManual({ slope: e.target.value ? parseFloat(e.target.value) : undefined })}
                         className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" min={0} max={100} />
                       <span className="text-[9px] text-muted">%</span>
                     </div>
