@@ -16,6 +16,7 @@ export interface PersistedField {
   relief?: ReliefInfo
   archived?: boolean
   archivedAt?: string
+  archivedVisible?: boolean
 }
 
 export interface PersistedData {

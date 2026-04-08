@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import L from 'leaflet'
 import { useAppStore } from '../store/useAppStore'
 import { FieldList } from './FieldList'
+import { getMap } from './MapView'
 import type { Field } from '../types'
 
 export function RightPanel() {
@@ -60,20 +60,18 @@ function ArchivesSection() {
   if (archivedFields.length === 0) return null
 
   const toggleVisible = (f: Field) => {
+    const map = getMap()
+    if (!map) { toast('⚠ Carte non prête', true); return }
     const next = !f.archivedVisible
     if (next) {
-      // Show: re-add layer and label to the map if not already
-      if (f.layer && !(f.layer as unknown as { _map: L.Map | null })._map) {
-        // Find the map from any other field layer or from document
-        const anyField = useAppStore.getState().fields.find((x) => x.layer && (x.layer as unknown as { _map: L.Map })._map)
-        const map = anyField ? (anyField.layer as unknown as { _map: L.Map })._map : null
-        if (map) {
-          f.layer.addTo(map)
-          f.labelMarker?.addTo(map)
-        }
+      // Show with archived style (dashed + faded) to distinguish from active zones
+      if (f.layer) {
+        f.layer.addTo(map)
+        f.layer.setStyle({ dashArray: '6 6', fillOpacity: 0.05, opacity: 0.6 })
       }
+      f.labelMarker?.addTo(map)
     } else {
-      if (f.layer) f.layer.remove()
+      f.layer?.remove()
       f.labelMarker?.remove()
     }
     setArchivedFieldVisible(f.id, next)
@@ -81,15 +79,15 @@ function ArchivesSection() {
 
   const handleUnarchive = (f: Field) => {
     if (!window.confirm(`Désarchiver « ${f.name} » ?\nLa zone redeviendra modifiable.`)) return
-    // Show on map if hidden
-    if (f.layer && !(f.layer as unknown as { _map: L.Map | null })._map) {
-      const anyField = useAppStore.getState().fields.find((x) => x.id !== f.id && x.layer && (x.layer as unknown as { _map: L.Map })._map)
-      const map = anyField ? (anyField.layer as unknown as { _map: L.Map })._map : null
-      if (map) {
+    const map = getMap()
+    if (map) {
+      // Restore full visibility with active-zone style
+      if (f.layer) {
         f.layer.addTo(map)
-        f.labelMarker?.addTo(map)
-        f.pointMarkers.forEach((m) => m.addTo(map))
+        f.layer.setStyle({ color: f.color, weight: 2, fillColor: f.color, fillOpacity: 0.15, dashArray: '', opacity: 1 })
       }
+      f.labelMarker?.addTo(map)
+      f.pointMarkers.forEach((m) => m.addTo(map))
     }
     unarchiveField(f.id)
     setArchivedFieldVisible(f.id, false)

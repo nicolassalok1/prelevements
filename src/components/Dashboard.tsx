@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import type { Employee, SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition, AgendaStatus } from '../types'
+import type { Employee, SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition } from '../types'
 
 const NAV_ITEMS: { key: DashboardTab; icon: string; label: string }[] = [
   { key: 'overview', icon: '◈', label: 'Vue d\'ensemble' },
@@ -336,327 +336,61 @@ function EmpRow({ emp, onEdit, onDel }: { emp: Employee; onEdit: (e: Employee) =
 //  AGENDA
 // ═══════════════════════════════════════
 
-const AGENDA_STATUS_LABELS: Record<AgendaStatus, string> = {
-  planifiee: 'Planifiée',
-  realisee: 'Réalisée',
-  annulee: 'Annulée',
-}
-
-const AGENDA_STATUS_COLOR: Record<AgendaStatus, string> = {
-  planifiee: 'text-cyan border-cyan/60',
-  realisee: 'text-olive-lit border-olive-lit/60',
-  annulee: 'text-muted border-border',
-}
-
-function todayISO() { return new Date().toISOString().slice(0, 10) }
-
 function AgendaTab() {
   const store = useAppStore()
-  const [view, setView] = useState<'calendar' | 'list'>('calendar')
-  const [cursor, setCursor] = useState(() => {
-    const d = new Date(); d.setDate(1); return d
-  })
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  const [editId, setEditId] = useState<number | null>(null)
-
-  // Form state
-  const [date, setDate] = useState(todayISO())
-  const [title, setTitle] = useState('')
-  const [notes, setNotes] = useState('')
-  const [fieldIds, setFieldIds] = useState<number[]>([])
-  const [workerIds, setWorkerIds] = useState<number[]>([])
-  const [managerIds, setManagerIds] = useState<number[]>([])
-  const [status, setStatus] = useState<AgendaStatus>('planifiee')
-
-  // Filters (list view)
-  const [filterField, setFilterField] = useState(0)
-  const [filterStatus, setFilterStatus] = useState<AgendaStatus | 'all'>('all')
-
-  const workers = store.employees.filter((e) => e.role === 'employe')
-  const managers = store.employees.filter((e) => e.role === 'responsable')
-
-  const resetForm = () => {
-    setEditId(null); setDate(todayISO()); setTitle(''); setNotes('')
-    setFieldIds([]); setWorkerIds([]); setManagerIds([]); setStatus('planifiee')
-  }
-
-  const handleSubmit = () => {
-    if (!title.trim()) { store.toast('⚠ Saisissez un titre', true); return }
-    const payload = { date, title: title.trim(), notes: notes.trim() || undefined, fieldIds, workerIds, managerIds, status }
-    if (editId !== null) {
-      store.updateAgendaTask(editId, payload)
-      store.toast(`✓ Tâche mise à jour`)
-    } else {
-      store.addAgendaTask(payload)
-      store.toast(`✓ Tâche ajoutée`)
-    }
-    resetForm()
-  }
-
-  const handleEdit = (id: number) => {
-    const t = store.agendaTasks.find((x) => x.id === id); if (!t) return
-    setEditId(t.id); setDate(t.date); setTitle(t.title); setNotes(t.notes || '')
-    setFieldIds([...t.fieldIds]); setWorkerIds([...t.workerIds]); setManagerIds([...t.managerIds])
-    setStatus(t.status)
-  }
-
-  const toggleId = (arr: number[], id: number) => arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]
-
-  // Calendar grid (Monday-first)
-  const year = cursor.getFullYear()
-  const month = cursor.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const startOffset = (firstDay.getDay() + 6) % 7  // Mon=0
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells: ({ day: number; iso: string } | null)[] = []
-  for (let i = 0; i < startOffset; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    cells.push({ day: d, iso })
-  }
-  while (cells.length % 7 !== 0) cells.push(null)
-
-  const tasksByDay = new Map<string, typeof store.agendaTasks>()
-  store.agendaTasks.forEach((t) => {
-    const arr = tasksByDay.get(t.date) || []
-    arr.push(t)
-    tasksByDay.set(t.date, arr)
-  })
-
-  const monthLabel = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-
-  // List view filtered
-  let filteredList = [...store.agendaTasks]
-  if (filterField) filteredList = filteredList.filter((t) => t.fieldIds.includes(filterField))
-  if (filterStatus !== 'all') filteredList = filteredList.filter((t) => t.status === filterStatus)
-  filteredList.sort((a, b) => b.date.localeCompare(a.date))
-
-  // Day-detail tasks
-  const dayTasks = selectedDay ? (tasksByDay.get(selectedDay) || []) : []
+  const activities = store.activities
+  const recent = [...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)
 
   return (
     <>
-      <TabHeader title="Agenda" subtitle="Planifier et journaliser les tâches sur les champs" />
+      <TabHeader title="Agenda" subtitle="Planifier et journaliser les activités sur les zones" />
 
-      {/* Form */}
-      <div className="bg-bg border border-border p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase">{editId !== null ? 'Modifier la tâche' : 'Nouvelle tâche'}</div>
-          {editId !== null && <button onClick={resetForm} className="text-[10px] text-muted hover:text-amber bg-transparent border-none cursor-pointer">↺ Annuler</button>}
+      <div className="bg-bg border border-border p-6 mb-5 flex items-center gap-4">
+        <div className="flex-1">
+          <div className="font-mono text-sm text-olive-lit mb-1">◰ Calendrier des activités</div>
+          <p className="text-xs text-muted leading-relaxed">
+            Gérez vos activités (arrosage, engrais, autres) au quotidien depuis le calendrier.
+            Cliquez sur un jour pour voir le détail ou ajouter une nouvelle activité.
+          </p>
         </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <label className="text-[10px] text-muted min-w-[40px]">DATE</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
-          </div>
-          <div className="flex items-center gap-2 col-span-2">
-            <label className="text-[10px] text-muted min-w-[40px]">TITRE</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Désherbage, Récolte..."
-              className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <label className="text-[10px] text-muted min-w-[40px]">STATUT</label>
-          <div className="flex gap-1">
-            {(Object.keys(AGENDA_STATUS_LABELS) as AgendaStatus[]).map((s) => (
-              <button key={s} onClick={() => setStatus(s)}
-                className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all ${status === s ? AGENDA_STATUS_COLOR[s] + ' bg-olive/10' : 'bg-transparent border-border text-muted hover:text-text'}`}>
-                {AGENDA_STATUS_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Champs */}
-        <div className="mb-2">
-          <div className="text-[10px] text-muted uppercase tracking-[.5px] mb-1">Champs concernés</div>
-          {store.fields.length ? (
-            <div className="flex flex-wrap gap-1">
-              {store.fields.map((f) => {
-                const on = fieldIds.includes(f.id)
-                return (
-                  <button key={f.id} onClick={() => setFieldIds(toggleId(fieldIds, f.id))}
-                    className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all flex items-center gap-1.5 ${on ? 'bg-olive border-olive-lit text-white' : 'bg-transparent border-border text-muted hover:border-olive hover:text-olive-lit'}`}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />
-                    {f.name}
-                  </button>
-                )
-              })}
-            </div>
-          ) : <div className="text-[10px] text-muted italic">Aucun champ défini.</div>}
-        </div>
-
-        {/* Responsables */}
-        <div className="mb-2">
-          <div className="text-[10px] text-muted uppercase tracking-[.5px] mb-1">Responsables</div>
-          {managers.length ? (
-            <div className="flex flex-wrap gap-1">
-              {managers.map((m) => {
-                const on = managerIds.includes(m.id)
-                return (
-                  <button key={m.id} onClick={() => setManagerIds(toggleId(managerIds, m.id))}
-                    className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all ${on ? 'bg-amber/30 border-amber text-amber' : 'bg-transparent border-border text-muted hover:border-amber hover:text-amber'}`}>
-                    {m.name}
-                  </button>
-                )
-              })}
-            </div>
-          ) : <div className="text-[10px] text-muted italic">Aucun responsable.</div>}
-        </div>
-
-        {/* Ouvriers */}
-        <div className="mb-2">
-          <div className="text-[10px] text-muted uppercase tracking-[.5px] mb-1">Ouvriers</div>
-          {workers.length ? (
-            <div className="flex flex-wrap gap-1">
-              {workers.map((w) => {
-                const on = workerIds.includes(w.id)
-                return (
-                  <button key={w.id} onClick={() => setWorkerIds(toggleId(workerIds, w.id))}
-                    className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all ${on ? 'bg-olive border-olive-lit text-white' : 'bg-transparent border-border text-muted hover:border-olive hover:text-olive-lit'}`}>
-                    {w.name}
-                  </button>
-                )
-              })}
-            </div>
-          ) : <div className="text-[10px] text-muted italic">Aucun ouvrier.</div>}
-        </div>
-
-        <div className="flex gap-2 mt-2">
-          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optionnel)"
-            className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <button className="btn-active" onClick={handleSubmit}>{editId !== null ? '✓ Sauver' : '+ Enregistrer'}</button>
-        </div>
+        <button
+          onClick={() => { store.setDashboardOpen(false); store.setCalendarOpen(true) }}
+          className="btn-cyan text-xs px-4 py-2.5 whitespace-nowrap">
+          Ouvrir le calendrier →
+        </button>
       </div>
 
-      {/* View toggle */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase">Tâches ({store.agendaTasks.length})</div>
-        <div className="flex gap-1">
-          <button onClick={() => setView('calendar')}
-            className={`font-mono text-[10px] px-2.5 py-1 border cursor-pointer transition-all ${view === 'calendar' ? 'bg-olive border-olive-lit text-white' : 'bg-transparent border-border text-muted hover:text-text'}`}>
-            ◰ Calendrier
-          </button>
-          <button onClick={() => setView('list')}
-            className={`font-mono text-[10px] px-2.5 py-1 border cursor-pointer transition-all ${view === 'list' ? 'bg-olive border-olive-lit text-white' : 'bg-transparent border-border text-muted hover:text-text'}`}>
-            ☰ Liste
-          </button>
-        </div>
+      <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase mb-3">
+        Activités récentes ({activities.length})
       </div>
-
-      {view === 'calendar' ? (
-        <>
-          {/* Month nav */}
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={() => setCursor(new Date(year, month - 1, 1))}
-              className="font-mono text-xs px-2 py-1 border border-border text-muted hover:text-olive-lit bg-transparent cursor-pointer">‹</button>
-            <div className="font-mono text-xs text-text uppercase tracking-[2px]">{monthLabel}</div>
-            <button onClick={() => setCursor(new Date(year, month + 1, 1))}
-              className="font-mono text-xs px-2 py-1 border border-border text-muted hover:text-olive-lit bg-transparent cursor-pointer">›</button>
-          </div>
-
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 gap-px mb-px">
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
-              <div key={i} className="text-center font-mono text-[9px] text-muted py-1 uppercase tracking-[1px]">{d}</div>
-            ))}
-          </div>
-
-          {/* Days grid */}
-          <div className="grid grid-cols-7 gap-px bg-border">
-            {cells.map((cell, i) => {
-              if (!cell) return <div key={i} className="bg-bg min-h-[58px]" />
-              const dayTasksHere = tasksByDay.get(cell.iso) || []
-              const isToday = cell.iso === todayISO()
-              const isSelected = cell.iso === selectedDay
-              return (
-                <button key={i} onClick={() => { setSelectedDay(cell.iso); setDate(cell.iso) }}
-                  className={`bg-bg min-h-[58px] p-1 text-left cursor-pointer transition-all border-0 flex flex-col gap-0.5 ${isSelected ? 'outline outline-2 -outline-offset-2 outline-olive-lit' : ''} ${isToday ? 'bg-olive/10' : ''} hover:bg-olive/5`}>
-                  <div className={`font-mono text-[10px] ${isToday ? 'text-olive-lit font-bold' : 'text-muted'}`}>{cell.day}</div>
-                  <div className="flex flex-col gap-0.5">
-                    {dayTasksHere.slice(0, 2).map((t) => (
-                      <div key={t.id} className={`font-mono text-[8px] truncate px-1 py-px border ${AGENDA_STATUS_COLOR[t.status]}`} title={t.title}>
-                        {t.title}
-                      </div>
-                    ))}
-                    {dayTasksHere.length > 2 && <div className="font-mono text-[8px] text-muted">+{dayTasksHere.length - 2}</div>}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Selected day detail */}
-          {selectedDay && (
-            <div className="mt-4 border border-border p-3">
-              <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase mb-2">
-                {new Date(selectedDay).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ({dayTasks.length})
-              </div>
-              {dayTasks.length ? (
-                <div className="space-y-1">{dayTasks.map((t) => <TaskRow key={t.id} task={t} onEdit={handleEdit} />)}</div>
-              ) : <EmptyState text="Aucune tâche ce jour." />}
-            </div>
-          )}
-        </>
+      {recent.length === 0 ? (
+        <EmptyState text="Aucune activité enregistrée." />
       ) : (
-        <>
-          {/* List filters */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <FieldSelector value={filterField} onChange={setFilterField} label="Filtre" />
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] text-muted uppercase tracking-[.5px] min-w-[50px]">Statut</label>
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as AgendaStatus | 'all')}
-                className="flex-1 font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
-                <option value="all">— Tous —</option>
-                {(Object.keys(AGENDA_STATUS_LABELS) as AgendaStatus[]).map((s) => <option key={s} value={s}>{AGENDA_STATUS_LABELS[s]}</option>)}
-              </select>
-            </div>
-          </div>
-          {filteredList.length ? (
-            <div className="space-y-1">{filteredList.map((t) => <TaskRow key={t.id} task={t} onEdit={handleEdit} />)}</div>
-          ) : <EmptyState text="Aucune tâche enregistrée." />}
-        </>
+        <div className="space-y-1">
+          {recent.map((a) => {
+            const fieldNames = a.fieldIds.map((id) => store.fields.find((f) => f.id === id)?.name).filter(Boolean).join(', ')
+            const label = a.type === 'watering' ? `Arrosage — ${IRRIGATION_LABELS[a.watering!.method]} (${a.watering!.durationMin} min)`
+              : a.type === 'amendment' ? `${a.amendment!.product} (${AMENDMENT_LABELS[a.amendment!.type]}, ${a.amendment!.quantityKg} kg)`
+              : a.other?.title || 'Activité'
+            return (
+              <div key={a.id} className="border border-border p-2.5 hover:bg-olive/5 transition-colors">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-mono text-[10px] text-muted">{a.date}</span>
+                  <span className="font-mono text-xs text-text font-bold">{label}</span>
+                  <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+                  {fieldNames && <span className="font-mono text-[10px] text-muted truncate">({fieldNames})</span>}
+                  <button onClick={() => { store.setDashboardOpen(false); store.openActivityForm({ date: a.date, editId: a.id }) }}
+                    className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]">✎</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </>
   )
 }
 
-function TaskRow({ task, onEdit }: { task: import('../types').AgendaTask; onEdit: (id: number) => void }) {
-  const store = useAppStore()
-  const fields = task.fieldIds.map((id) => store.fields.find((f) => f.id === id)).filter(Boolean)
-  const workers = task.workerIds.map((id) => store.employees.find((e) => e.id === id)).filter(Boolean)
-  const managers = task.managerIds.map((id) => store.employees.find((e) => e.id === id)).filter(Boolean)
-  return (
-    <div className="border border-border p-2.5 hover:bg-olive/5 transition-colors">
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="font-mono text-[10px] text-muted">{task.date}</span>
-        <span className="font-mono text-xs text-text font-bold">{task.title}</span>
-        <span className={`font-mono text-[9px] px-1.5 py-px border ${AGENDA_STATUS_COLOR[task.status]}`}>{AGENDA_STATUS_LABELS[task.status]}</span>
-        <button onClick={() => onEdit(task.id)} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[10px]" title="Modifier">✎</button>
-        <button onClick={() => { if (confirm('Supprimer cette tâche ?')) store.removeAgendaTask(task.id) }} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs" title="Supprimer">✕</button>
-      </div>
-      {(fields.length > 0 || workers.length > 0 || managers.length > 0) && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {fields.map((f) => f && (
-            <span key={`f${f.id}`} className="font-mono text-[9px] px-1.5 py-px border border-border text-muted flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: f.color }} />{f.name}
-            </span>
-          ))}
-          {managers.map((m) => m && (
-            <span key={`m${m.id}`} className="font-mono text-[9px] px-1.5 py-px border border-amber/40 text-amber">★ {m.name}</span>
-          ))}
-          {workers.map((w) => w && (
-            <span key={`w${w.id}`} className="font-mono text-[9px] px-1.5 py-px border border-olive/40 text-olive-lit">{w.name}</span>
-          ))}
-        </div>
-      )}
-      {task.notes && <div className="font-mono text-[10px] text-muted mt-1.5 border-t border-border/30 pt-1 italic">{task.notes}</div>}
-    </div>
-  )
-}
 
 // ═══════════════════════════════════════
 //  ARROSAGE

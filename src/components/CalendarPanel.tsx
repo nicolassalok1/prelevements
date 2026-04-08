@@ -60,16 +60,24 @@ export function CalendarPanel() {
       <div className="bg-panel border border-border w-[92vw] max-w-[720px] h-[85vh] flex flex-col">
         <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
           <span className="font-mono text-sm text-olive-lit tracking-[2px] uppercase flex-1">◰ Agenda — Calendrier</span>
-          <button onClick={() => openActivityForm(selectedDay || todayISO(), null)} className="btn-active text-[10px]">+ Activité</button>
+          <button onClick={() => openActivityForm({ date: selectedDay || todayISO() })} className="btn-active text-[10px]">+ Activité</button>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-red bg-transparent border-none text-lg cursor-pointer">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
           {/* Month nav */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <button onClick={() => setCursor(new Date(year, month - 1, 1))}
               className="font-mono text-xs px-2 py-1 border border-border text-muted hover:text-olive-lit bg-transparent cursor-pointer">‹</button>
-            <div className="font-mono text-xs text-text uppercase tracking-[2px]">{monthLabel}</div>
+            <div className="flex items-center gap-2 flex-1 justify-center">
+              <div className="font-mono text-xs text-text uppercase tracking-[2px]">{monthLabel}</div>
+              <button
+                onClick={() => { const d = new Date(); d.setDate(1); setCursor(d); setSelectedDay(todayISO()) }}
+                className="font-mono text-[10px] px-2 py-0.5 border border-olive-lit text-olive-lit hover:bg-olive/20 bg-transparent cursor-pointer"
+                title="Revenir au mois courant">
+                ● Aujourd'hui
+              </button>
+            </div>
             <button onClick={() => setCursor(new Date(year, month + 1, 1))}
               className="font-mono text-xs px-2 py-1 border border-border text-muted hover:text-olive-lit bg-transparent cursor-pointer">›</button>
           </div>
@@ -92,7 +100,7 @@ export function CalendarPanel() {
               return (
                 <button key={i}
                   onClick={() => setSelectedDay(cell.iso)}
-                  onDoubleClick={() => openActivityForm(cell.iso, null)}
+                  onDoubleClick={() => openActivityForm({ date: cell.iso })}
                   className={`bg-bg min-h-[66px] p-1 text-left cursor-pointer transition-all border-0 flex flex-col gap-0.5
                     ${isSelected ? 'outline outline-2 -outline-offset-2 outline-olive-lit' : ''}
                     ${isToday ? 'bg-olive/10' : ''} hover:bg-olive/5 ${allGrayed ? 'opacity-50' : ''}`}
@@ -119,7 +127,7 @@ export function CalendarPanel() {
                 <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase">
                   {new Date(selectedDay).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ({dayActivities.length})
                 </div>
-                <button onClick={() => openActivityForm(selectedDay, null)} className="btn-sm btn-active text-[10px]">+ Ajouter</button>
+                <button onClick={() => openActivityForm({ date: selectedDay })} className="btn-sm btn-active text-[10px]">+ Ajouter</button>
               </div>
               {dayActivities.length ? (
                 <div className="space-y-1">
@@ -144,7 +152,7 @@ function ActivityRow({ activity }: { activity: Activity }) {
         <span className={`font-mono text-[9px] px-1.5 py-px border ${TYPE_COLOR[activity.type]}`}>{TYPE_LABELS[activity.type]}</span>
         <span className="font-mono text-xs text-text font-bold">{activityLabel(activity)}</span>
         <span className="font-mono text-[10px] text-muted">{activity.workerCount} ouvrier{activity.workerCount > 1 ? 's' : ''}</span>
-        <button onClick={() => store.openActivityForm(activity.date, activity.id)} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
+        <button onClick={() => store.openActivityForm({ date: activity.date, editId: activity.id })} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
         <button onClick={() => { if (confirm('Supprimer cette activité ?')) store.removeActivity(activity.id) }} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs" title="Supprimer">✕</button>
       </div>
       {fields.length > 0 && (

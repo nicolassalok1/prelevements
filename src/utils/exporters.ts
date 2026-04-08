@@ -1,4 +1,4 @@
-import type { Field, LatLng, Employee, WateringEntry, AmendmentEntry, SoilAnalysis } from '../types'
+import type { Field, LatLng } from '../types'
 import type { PersistedData } from './persistence'
 
 interface ExportPoint {
@@ -97,30 +97,13 @@ export function exportKML(fields: Field[]): number {
 
 // ── Export/Import projet complet ──
 
-export function exportProject(opts: {
-  fields: Field[], exploitPolygon: LatLng[] | null, exploitArea: number, fieldIdCounter: number,
-  generationMethod: string, density: number, employees: Employee[], employeeIdCounter: number,
-  strains: string[], wateringLog: WateringEntry[], wateringIdCounter: number,
-  amendmentLog: AmendmentEntry[], amendmentIdCounter: number,
-  soilAnalyses: SoilAnalysis[], soilAnalysisIdCounter: number,
-}): boolean {
-  const data: PersistedData = {
-    exploitPolygon: opts.exploitPolygon,
-    exploitArea: opts.exploitArea,
-    fields: opts.fields.map((f) => ({
-      id: f.id, name: f.name, color: f.color, latlngs: f.latlngs,
-      area: f.area, perimeter: f.perimeter, points: f.points,
-      culture: f.culture, assignedEmployees: f.assignedEmployees,
-      assignedManager: f.assignedManager, relief: f.relief,
-    })),
-    fieldIdCounter: opts.fieldIdCounter, generationMethod: opts.generationMethod, density: opts.density,
-    employees: opts.employees, employeeIdCounter: opts.employeeIdCounter, strains: opts.strains,
-    wateringLog: opts.wateringLog, wateringIdCounter: opts.wateringIdCounter,
-    amendmentLog: opts.amendmentLog, amendmentIdCounter: opts.amendmentIdCounter,
-    soilAnalyses: opts.soilAnalyses, soilAnalysisIdCounter: opts.soilAnalysisIdCounter,
-  }
-
-  if (!data.exploitPolygon && data.fields.length === 0) return false
+/**
+ * Export the entire project as JSON. Accepts a PersistedData-shaped payload
+ * so that every persistable field (including activities, archived zones,
+ * agenda tasks, etc.) is included by default — no risk of data loss at export.
+ */
+export function exportProject(data: PersistedData): boolean {
+  if (!data.exploitPolygon && (!data.fields || data.fields.length === 0)) return false
 
   const date = new Date().toISOString().slice(0, 10)
   download(`projet-anrac-${date}.json`, JSON.stringify(data, null, 2), 'application/json')

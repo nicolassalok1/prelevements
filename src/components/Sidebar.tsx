@@ -24,14 +24,31 @@ export function Sidebar() {
 
   const handleSave = () => {
     const ok = exportProject({
-      fields: store.fields, exploitPolygon: store.exploitPolygon,
-      exploitArea: store.exploitArea, fieldIdCounter: store.fieldIdCounter,
-      generationMethod: store.generationMethod, density: store.density,
-      employees: store.employees, employeeIdCounter: store.employeeIdCounter,
-      strains: store.strains, wateringLog: store.wateringLog,
-      wateringIdCounter: store.wateringIdCounter, amendmentLog: store.amendmentLog,
-      amendmentIdCounter: store.amendmentIdCounter, soilAnalyses: store.soilAnalyses,
+      exploitPolygon: store.exploitPolygon,
+      exploitArea: store.exploitArea,
+      fields: store.fields.map((f) => ({
+        id: f.id, name: f.name, color: f.color, latlngs: f.latlngs,
+        area: f.area, perimeter: f.perimeter, points: f.points,
+        culture: f.culture, assignedEmployees: f.assignedEmployees,
+        assignedManager: f.assignedManager, relief: f.relief,
+        archived: f.archived, archivedAt: f.archivedAt,
+      })),
+      fieldIdCounter: store.fieldIdCounter,
+      generationMethod: store.generationMethod,
+      density: store.density,
+      employees: store.employees,
+      employeeIdCounter: store.employeeIdCounter,
+      strains: store.strains,
+      wateringLog: store.wateringLog,
+      wateringIdCounter: store.wateringIdCounter,
+      amendmentLog: store.amendmentLog,
+      amendmentIdCounter: store.amendmentIdCounter,
+      soilAnalyses: store.soilAnalyses,
       soilAnalysisIdCounter: store.soilAnalysisIdCounter,
+      agendaTasks: store.agendaTasks,
+      agendaIdCounter: store.agendaIdCounter,
+      activities: store.activities,
+      activityIdCounter: store.activityIdCounter,
     })
     if (ok) store.toast('✓ Projet exporté en JSON')
     else store.toast('⚠ Rien à exporter', true)

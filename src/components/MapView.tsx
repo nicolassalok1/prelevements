@@ -6,8 +6,13 @@ import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromStorage } from '../utils/persistence'
 import type { LatLng, Field } from '../types'
 
-// Module-level ref so other components can add points programmatically
+// Module-level ref so other components can interact with the map programmatically.
+// Use getMap() to access it — don't read `globalMap` directly from other modules.
 let globalMap: L.Map | null = null
+
+export function getMap(): L.Map | null {
+  return globalMap
+}
 
 export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
   const map = globalMap
@@ -407,11 +412,18 @@ function restorePersistedData(map: L.Map) {
           .bindPopup(`<b>${pt.label}</b><br>${sf.name}<br>Lat: ${pt.lat.toFixed(6)}<br>Lng: ${pt.lng.toFixed(6)}${pt.notes ? `<br><i>${pt.notes}</i>` : ''}`)
       })
 
-      // Only add to map if not archived (archived zones are hidden by default, shown via toggle)
+      // Add to map based on archived state:
+      // - active zone → full render (layer + label + points)
+      // - archived zone + archivedVisible → layer + label with dashed/faded style, no points
+      // - archived zone + !archivedVisible → nothing on map
       if (!sf.archived) {
         layer.addTo(map)
         labelMarker.addTo(map)
         pointMarkers.forEach((m) => m.addTo(map))
+      } else if (sf.archivedVisible) {
+        layer.addTo(map)
+        layer.setStyle({ dashArray: '6 6', fillOpacity: 0.05, opacity: 0.6 })
+        labelMarker.addTo(map)
       }
 
       const field: Field = {
@@ -428,7 +440,7 @@ function restorePersistedData(map: L.Map) {
         relief: sf.relief,
         archived: sf.archived,
         archivedAt: sf.archivedAt,
-        archivedVisible: false,
+        archivedVisible: sf.archivedVisible,
         layer,
         labelMarker,
         pointMarkers,

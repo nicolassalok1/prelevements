@@ -203,6 +203,8 @@ export interface AppState {
   activityFormOpen: boolean
   activityFormDate: string | null
   activityFormEditId: number | null
+  activityFormPresetType: ActivityType | null
+  activityFormPresetFieldId: number | null
 
   // ── Actions ──
 
@@ -274,7 +276,7 @@ export interface AppState {
   closeFieldDetail: () => void
   setFieldDetailTab: (tab: FieldDetailTab) => void
   setCalendarOpen: (open: boolean) => void
-  openActivityForm: (date?: string | null, editId?: number | null) => void
+  openActivityForm: (opts?: { date?: string | null; editId?: number | null; presetType?: ActivityType; presetFieldId?: number }) => void
   closeActivityForm: () => void
   clearAll: () => void
 }

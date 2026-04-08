@@ -34,7 +34,10 @@ export function FieldDetailPanel() {
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0">
           <div className="w-3 h-3 rounded-full" style={{ background: field.color }} />
-          <h2 className="font-mono text-sm text-text font-bold flex-1 truncate">{field.name}</h2>
+          <h2 className={`font-mono text-sm font-bold flex-1 truncate ${field.archived ? 'text-muted line-through' : 'text-text'}`}>{field.name}</h2>
+          {field.archived && (
+            <span className="font-mono text-[9px] px-1.5 py-0.5 border border-amber text-amber uppercase tracking-[1px]">Archivée</span>
+          )}
           <span className="font-mono text-[10px] text-muted">{field.area.toFixed(2)} ha</span>
           <button onClick={close} className="text-muted hover:text-red bg-transparent border-none text-lg cursor-pointer transition-colors">✕</button>
         </div>
@@ -104,8 +107,15 @@ function InfoTab() {
     setEditing(false)
   }
 
-  const waterCount = useAppStore((s) => s.wateringLog.filter((w) => w.fieldId === field.id).length)
-  const amendCount = useAppStore((s) => s.amendmentLog.filter((a) => a.fieldId === field.id).length)
+  const waterCount = useAppStore((s) =>
+    s.wateringLog.filter((w) => w.fieldId === field.id).length
+    + s.activities.filter((a) => a.type === 'watering' && a.fieldIds.includes(field.id)).length
+  )
+  const amendCount = useAppStore((s) =>
+    s.amendmentLog.filter((a) => a.fieldId === field.id).length
+    + s.activities.filter((a) => a.type === 'amendment' && a.fieldIds.includes(field.id)).length
+  )
+  const otherCount = useAppStore((s) => s.activities.filter((a) => a.type === 'other' && a.fieldIds.includes(field.id)).length)
   const soilCount = useAppStore((s) => s.soilAnalyses.filter((a) => a.fieldId === field.id).length)
   const employees = useAppStore((s) => s.employees)
   const manager = field.assignedManager ? employees.find((e) => e.id === field.assignedManager) : null
@@ -146,6 +156,7 @@ function InfoTab() {
           <div>Employés : <span className="text-text">{field.assignedEmployees.length}</span></div>
           <div>Arrosages : <span className="text-cyan">{waterCount}</span></div>
           <div>Amendements : <span className="text-olive-lit">{amendCount}</span></div>
+          <div>Autres activités : <span className="text-amber">{otherCount}</span></div>
           <div>Analyses sol : <span className="text-amber">{soilCount}</span></div>
           {field.relief && <div>Exposition : <span className="text-cyan">{EXPO_LABELS[field.relief.exposition]}</span></div>}
         </div>
@@ -254,75 +265,34 @@ function PersonnelTab() {
 function WateringTab() {
   const field = useField()
   const store = useAppStore()
-  const entries = store.wateringLog.filter((w) => w.fieldId === field.id).sort((a, b) => b.date.localeCompare(a.date))
-
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [method, setMethod] = useState<IrrigationMethod>('goutte_a_goutte')
-  const [duration, setDuration] = useState(30)
-  const [volume, setVolume] = useState('')
-  const [notes, setNotes] = useState('')
-
-  const handleAdd = () => {
-    store.addWatering({ date, fieldId: field.id, method, durationMin: duration, volumeL: volume ? parseFloat(volume) : undefined, notes: notes || undefined })
-    store.toast('✓ Arrosage enregistré')
-    setNotes(''); setVolume('')
-  }
+  const isArchived = !!field.archived
+  const legacyEntries = store.wateringLog.filter((w) => w.fieldId === field.id).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <div className="space-y-4">
-      {/* Form */}
-      <div className="bg-bg border border-border p-3 space-y-2">
-        <Label>Nouvel arrosage</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
-          <select value={method} onChange={(e) => setMethod(e.target.value as IrrigationMethod)}
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
-            {Object.entries(IRRIGATION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-1">
-            <input type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 0)} min={1}
-              className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit w-0" />
-            <span className="text-[9px] text-muted shrink-0">min</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <input type="number" value={volume} onChange={(e) => setVolume(e.target.value)} placeholder="—"
-              className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted w-0" />
-            <span className="text-[9px] text-muted shrink-0">litres</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes"
-            className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <button className="btn-active text-[10px]" onClick={handleAdd}>+</button>
-        </div>
-      </div>
-
-      {/* History */}
-      <div>
-        <Label>Historique ({entries.length})</Label>
-        {entries.length ? (
-          <div className="space-y-1 mt-1">
-            {entries.map((w) => (
-              <div key={w.id} className="border border-border p-2 hover:bg-olive/5 transition-colors">
+      <QuickAddActivityButton fieldId={field.id} type="watering" disabled={isArchived} />
+      <ActivityList fieldId={field.id} type="watering" showEmpty />
+      {legacyEntries.length > 0 && (
+        <div>
+          <Label>Ancien historique ({legacyEntries.length})</Label>
+          <div className={`space-y-1 mt-1 ${isArchived ? 'opacity-60' : ''}`}>
+            {legacyEntries.map((w) => (
+              <div key={w.id} className="border border-border/60 p-2 hover:bg-olive/5 transition-colors">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-[10px] text-muted">{w.date}</span>
                   <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{IRRIGATION_LABELS[w.method]}</span>
                   <span className="font-mono text-xs text-cyan">{w.durationMin} min</span>
                   {w.volumeL && <span className="font-mono text-xs text-muted">{w.volumeL} L</span>}
-                  <button onClick={() => store.removeWatering(w.id)} className="ml-auto text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
+                  {!isArchived && (
+                    <button onClick={() => store.removeWatering(w.id)} className="ml-auto text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
+                  )}
                 </div>
                 {w.notes && <div className="font-mono text-[10px] text-muted mt-1 border-t border-border/30 pt-1 italic">{w.notes}</div>}
               </div>
             ))}
           </div>
-        ) : <Empty text="Aucun arrosage pour ce champ." />}
-      </div>
-
-      {/* Activities (from calendar) */}
-      <ActivityList fieldId={field.id} type="watering" />
+        </div>
+      )}
     </div>
   )
 }
@@ -334,72 +304,48 @@ function WateringTab() {
 function AmendmentsTab() {
   const field = useField()
   const store = useAppStore()
-  const entries = store.amendmentLog.filter((a) => a.fieldId === field.id).sort((a, b) => b.date.localeCompare(a.date))
-
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [type, setType] = useState<AmendmentType>('organique')
-  const [product, setProduct] = useState('')
-  const [qty, setQty] = useState(10)
-  const [notes, setNotes] = useState('')
-
-  const handleAdd = () => {
-    if (!product.trim()) { store.toast('⚠ Nom du produit requis', true); return }
-    store.addAmendment({ date, fieldId: field.id, type, product: product.trim(), quantityKg: qty, notes: notes || undefined })
-    store.toast('✓ Amendement enregistré')
-    setProduct(''); setNotes('')
-  }
+  const isArchived = !!field.archived
+  const legacyEntries = store.amendmentLog.filter((a) => a.fieldId === field.id).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <div className="space-y-4">
-      <div className="bg-bg border border-border p-3 space-y-2">
-        <Label>Nouvel amendement</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
-          <select value={type} onChange={(e) => setType(e.target.value as AmendmentType)}
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
-            {Object.entries(AMENDMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <input type="text" value={product} onChange={(e) => setProduct(e.target.value)} placeholder="Produit"
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <div className="flex items-center gap-1">
-            <input type="number" value={qty} onChange={(e) => setQty(parseFloat(e.target.value) || 0)} min={0}
-              className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit w-0" />
-            <span className="text-[9px] text-muted shrink-0">kg</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes"
-            className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <button className="btn-active text-[10px]" onClick={handleAdd}>+</button>
-        </div>
-      </div>
-
-      <div>
-        <Label>Historique ({entries.length})</Label>
-        {entries.length ? (
-          <div className="space-y-1 mt-1">
-            {entries.map((a) => (
-              <div key={a.id} className="border border-border p-2 hover:bg-olive/5 transition-colors">
+      <QuickAddActivityButton fieldId={field.id} type="amendment" disabled={isArchived} />
+      <ActivityList fieldId={field.id} type="amendment" showEmpty />
+      {legacyEntries.length > 0 && (
+        <div>
+          <Label>Ancien historique ({legacyEntries.length})</Label>
+          <div className={`space-y-1 mt-1 ${isArchived ? 'opacity-60' : ''}`}>
+            {legacyEntries.map((a) => (
+              <div key={a.id} className="border border-border/60 p-2 hover:bg-olive/5 transition-colors">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-[10px] text-muted">{a.date}</span>
                   <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{AMENDMENT_LABELS[a.type]}</span>
                   <span className="font-mono text-xs text-amber">{a.product}</span>
                   <span className="font-mono text-xs text-olive-lit">{a.quantityKg} kg</span>
-                  <button onClick={() => store.removeAmendment(a.id)} className="ml-auto text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
+                  {!isArchived && (
+                    <button onClick={() => store.removeAmendment(a.id)} className="ml-auto text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
+                  )}
                 </div>
                 {a.notes && <div className="font-mono text-[10px] text-muted mt-1 border-t border-border/30 pt-1 italic">{a.notes}</div>}
               </div>
             ))}
           </div>
-        ) : <Empty text="Aucun amendement pour ce champ." />}
-      </div>
-
-      {/* Activities (from calendar) */}
-      <ActivityList fieldId={field.id} type="amendment" />
+        </div>
+      )}
     </div>
+  )
+}
+
+function QuickAddActivityButton({ fieldId, type, disabled }: { fieldId: number; type: 'watering' | 'amendment' | 'other'; disabled?: boolean }) {
+  const openActivityForm = useAppStore((s) => s.openActivityForm)
+  const label = type === 'watering' ? 'Arrosage' : type === 'amendment' ? 'Engrais' : 'Activité'
+  return (
+    <button
+      disabled={disabled}
+      onClick={() => openActivityForm({ date: new Date().toISOString().slice(0, 10), presetType: type, presetFieldId: fieldId })}
+      className="btn-active w-full text-[11px] py-2 disabled:opacity-50 disabled:cursor-not-allowed">
+      + Nouvel(le) {label.toLowerCase()} (via agenda)
+    </button>
   )
 }
 
@@ -410,14 +356,9 @@ function AmendmentsTab() {
 function OtherActivitiesTab() {
   const field = useField()
   const isArchived = !!field.archived
-  const openActivityForm = useAppStore((s) => s.openActivityForm)
   return (
     <div className="space-y-4">
-      {!isArchived && (
-        <button className="btn-active w-full text-[11px] py-2" onClick={() => openActivityForm(new Date().toISOString().slice(0, 10), null)}>
-          + Nouvelle activité (via calendrier)
-        </button>
-      )}
+      <QuickAddActivityButton fieldId={field.id} type="other" disabled={isArchived} />
       <ActivityList fieldId={field.id} type="other" showEmpty />
     </div>
   )
@@ -466,7 +407,7 @@ function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: 'wa
               <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
               {!isArchived && (
                 <>
-                  <button onClick={() => openActivityForm(a.date, a.id)} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
+                  <button onClick={() => openActivityForm({ date: a.date, editId: a.id })} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
                   <button onClick={() => { if (confirm('Supprimer cette activité ?')) removeActivity(a.id) }} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs" title="Supprimer">✕</button>
                 </>
               )}

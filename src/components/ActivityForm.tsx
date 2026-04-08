@@ -12,6 +12,8 @@ export function ActivityForm() {
   const close = useAppStore((s) => s.closeActivityForm)
   const initialDate = useAppStore((s) => s.activityFormDate)
   const editId = useAppStore((s) => s.activityFormEditId)
+  const presetType = useAppStore((s) => s.activityFormPresetType)
+  const presetFieldId = useAppStore((s) => s.activityFormPresetFieldId)
   const activities = useAppStore((s) => s.activities)
   const addActivity = useAppStore((s) => s.addActivity)
   const updateActivity = useAppStore((s) => s.updateActivity)
@@ -52,11 +54,14 @@ export function ActivityForm() {
       }
     }
     // New
-    setType('watering'); setDate(initialDate || todayISO()); setFieldIds([]); setWorkerCount(1); setNotes('')
+    setType(presetType || 'watering')
+    setDate(initialDate || todayISO())
+    setFieldIds(presetFieldId ? [presetFieldId] : [])
+    setWorkerCount(1); setNotes('')
     setWMethod('goutte_a_goutte'); setWDuration(30); setWVolume('')
     setAType('organique'); setAProduct(''); setAQty(10)
     setOtherTitle('')
-  }, [open, editId, initialDate])
+  }, [open, editId, initialDate, presetType, presetFieldId])
 
   if (!open) return null
 

@@ -17,6 +17,7 @@ function persist(state: AppState) {
       culture: f.culture, assignedEmployees: f.assignedEmployees,
       assignedManager: f.assignedManager, relief: f.relief,
       archived: f.archived, archivedAt: f.archivedAt,
+      archivedVisible: f.archivedVisible,
     })),
     fieldIdCounter: state.fieldIdCounter,
     generationMethod: state.generationMethod,
@@ -51,6 +52,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   statusText: 'EN ATTENTE', helpOpen: false, dashboardOpen: false, dashboardTab: 'overview',
   fieldDetailOpen: false, fieldDetailTab: 'info',
   calendarOpen: false, activityFormOpen: false, activityFormDate: null, activityFormEditId: null,
+  activityFormPresetType: null, activityFormPresetFieldId: null,
 
   // ── Exploitation ──
   setExploitation: (polygon, area, layer, label) => {
@@ -110,6 +112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setArchivedFieldVisible: (id, visible) => {
     set((s) => ({ fields: s.fields.map((f) => f.id === id ? { ...f, archivedVisible: visible } : f) }))
+    persist(get())
   },
 
   removePoint: (fieldId, pointIndex) => {
@@ -249,8 +252,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeFieldDetail: () => set({ fieldDetailOpen: false }),
   setFieldDetailTab: (tab) => set({ fieldDetailTab: tab }),
   setCalendarOpen: (open) => set({ calendarOpen: open }),
-  openActivityForm: (date = null, editId = null) => set({ activityFormOpen: true, activityFormDate: date, activityFormEditId: editId }),
-  closeActivityForm: () => set({ activityFormOpen: false, activityFormDate: null, activityFormEditId: null }),
+  openActivityForm: (opts = {}) => set({
+    activityFormOpen: true,
+    activityFormDate: opts.date ?? null,
+    activityFormEditId: opts.editId ?? null,
+    activityFormPresetType: opts.presetType ?? null,
+    activityFormPresetFieldId: opts.presetFieldId ?? null,
+  }),
+  closeActivityForm: () => set({
+    activityFormOpen: false, activityFormDate: null, activityFormEditId: null,
+    activityFormPresetType: null, activityFormPresetFieldId: null,
+  }),
   clearAll: () => {
     set((s) => ({
       exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
