@@ -82,11 +82,21 @@ export interface Activity {
   date: string                 // ISO YYYY-MM-DD
   type: ActivityType
   fieldIds: number[]           // zones concernées
-  workerCount: number          // nombre d'ouvriers ayant effectué l'activité
+  workerCount: number          // nombre d'ouvriers (0 pour arrosage)
   notes?: string
   // données type-spécifiques
-  watering?: { method: IrrigationMethod; durationMin: number; volumeL?: number }
-  amendment?: { type: AmendmentType; product: string; quantityKg: number }
+  watering?: {
+    method: IrrigationMethod
+    durationMin: number        // temps d'arrosage en minutes
+    flowRatePerHour?: number   // débit en L/heure
+    volumeL?: number           // legacy/optionnel
+  }
+  amendment?: {
+    type: AmendmentType        // catégorie standard
+    customType?: string        // type d'engrais saisi librement
+    product: string
+    quantityKg: number
+  }
   other?: { title: string }
   createdAt: string
 }

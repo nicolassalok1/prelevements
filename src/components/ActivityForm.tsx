@@ -28,9 +28,10 @@ export function ActivityForm() {
   // Watering
   const [wMethod, setWMethod] = useState<IrrigationMethod>('goutte_a_goutte')
   const [wDuration, setWDuration] = useState(30)
-  const [wVolume, setWVolume] = useState('')
+  const [wFlowRate, setWFlowRate] = useState('')
   // Amendment
   const [aType, setAType] = useState<AmendmentType>('organique')
+  const [aCustomType, setACustomType] = useState('')
   const [aProduct, setAProduct] = useState('')
   const [aQty, setAQty] = useState(10)
   // Other
@@ -47,8 +48,17 @@ export function ActivityForm() {
         setFieldIds([...a.fieldIds])
         setWorkerCount(a.workerCount)
         setNotes(a.notes || '')
-        if (a.watering) { setWMethod(a.watering.method); setWDuration(a.watering.durationMin); setWVolume(a.watering.volumeL != null ? String(a.watering.volumeL) : '') }
-        if (a.amendment) { setAType(a.amendment.type); setAProduct(a.amendment.product); setAQty(a.amendment.quantityKg) }
+        if (a.watering) {
+          setWMethod(a.watering.method)
+          setWDuration(a.watering.durationMin)
+          setWFlowRate(a.watering.flowRatePerHour != null ? String(a.watering.flowRatePerHour) : '')
+        }
+        if (a.amendment) {
+          setAType(a.amendment.type)
+          setACustomType(a.amendment.customType || '')
+          setAProduct(a.amendment.product)
+          setAQty(a.amendment.quantityKg)
+        }
         if (a.other) { setOtherTitle(a.other.title) }
         return
       }
@@ -58,8 +68,8 @@ export function ActivityForm() {
     setDate(initialDate || todayISO())
     setFieldIds(presetFieldId ? [presetFieldId] : [])
     setWorkerCount(1); setNotes('')
-    setWMethod('goutte_a_goutte'); setWDuration(30); setWVolume('')
-    setAType('organique'); setAProduct(''); setAQty(10)
+    setWMethod('goutte_a_goutte'); setWDuration(30); setWFlowRate('')
+    setAType('organique'); setACustomType(''); setAProduct(''); setAQty(10)
     setOtherTitle('')
   }, [open, editId, initialDate, presetType, presetFieldId])
 
@@ -69,15 +79,26 @@ export function ActivityForm() {
 
   const handleSubmit = () => {
     if (!fieldIds.length) { toast('⚠ Sélectionnez au moins une zone', true); return }
-    if (workerCount < 1) { toast('⚠ Au moins 1 ouvrier', true); return }
+    if (type !== 'watering' && workerCount < 1) { toast('⚠ Au moins 1 ouvrier', true); return }
     if (type === 'amendment' && !aProduct.trim()) { toast('⚠ Nom du produit requis', true); return }
     if (type === 'other' && !otherTitle.trim()) { toast('⚠ Titre de l\'activité requis', true); return }
 
     const payload = {
-      date, type, fieldIds, workerCount,
+      date, type, fieldIds,
+      // Watering n'a pas d'ouvriers — on stocke 0 pour cohérence du schéma
+      workerCount: type === 'watering' ? 0 : workerCount,
       notes: notes.trim() || undefined,
-      watering: type === 'watering' ? { method: wMethod, durationMin: wDuration, volumeL: wVolume ? parseFloat(wVolume) : undefined } : undefined,
-      amendment: type === 'amendment' ? { type: aType, product: aProduct.trim(), quantityKg: aQty } : undefined,
+      watering: type === 'watering' ? {
+        method: wMethod,
+        durationMin: wDuration,
+        flowRatePerHour: wFlowRate ? parseFloat(wFlowRate) : undefined,
+      } : undefined,
+      amendment: type === 'amendment' ? {
+        type: aType,
+        customType: aCustomType.trim() || undefined,
+        product: aProduct.trim(),
+        quantityKg: aQty,
+      } : undefined,
       other: type === 'other' ? { title: otherTitle.trim() } : undefined,
     }
 
@@ -116,18 +137,20 @@ export function ActivityForm() {
             </div>
           </div>
 
-          {/* Date + workers */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Date + (workers if not watering) */}
+          <div className={`grid gap-3 ${type === 'watering' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <div>
               <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Date</div>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 className="w-full font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
             </div>
-            <div>
-              <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Nombre d'ouvriers</div>
-              <input type="number" min={1} value={workerCount} onChange={(e) => setWorkerCount(parseInt(e.target.value) || 1)}
-                className="w-full font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
-            </div>
+            {type !== 'watering' && (
+              <div>
+                <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Nombre d'ouvriers</div>
+                <input type="number" min={1} value={workerCount} onChange={(e) => setWorkerCount(parseInt(e.target.value) || 1)}
+                  className="w-full font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
+              </div>
+            )}
           </div>
 
           {/* Zones */}
@@ -152,22 +175,33 @@ export function ActivityForm() {
           {type === 'watering' && (
             <div className="bg-bg border border-border p-3 space-y-2">
               <div className="font-mono text-[9px] text-muted uppercase tracking-[1px]">Arrosage</div>
+              <select value={wMethod} onChange={(e) => setWMethod(e.target.value as IrrigationMethod)}
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
+                {Object.entries(IRRIGATION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
               <div className="grid grid-cols-2 gap-2">
-                <select value={wMethod} onChange={(e) => setWMethod(e.target.value as IrrigationMethod)}
-                  className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
-                  {Object.entries(IRRIGATION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-                <div className="flex items-center gap-1">
-                  <input type="number" min={1} value={wDuration} onChange={(e) => setWDuration(parseInt(e.target.value) || 0)}
-                    className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit w-0" />
-                  <span className="text-[9px] text-muted shrink-0">min</span>
+                <div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-[.5px] mb-1">Temps d'arrosage</div>
+                  <div className="flex items-center gap-1">
+                    <input type="number" min={1} value={wDuration} onChange={(e) => setWDuration(parseInt(e.target.value) || 0)}
+                      className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit w-0" />
+                    <span className="text-[9px] text-muted shrink-0">min</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-[.5px] mb-1">Débit</div>
+                  <div className="flex items-center gap-1">
+                    <input type="number" min={0} step="0.1" value={wFlowRate} onChange={(e) => setWFlowRate(e.target.value)} placeholder="—"
+                      className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted w-0" />
+                    <span className="text-[9px] text-muted shrink-0">L/h</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <input type="number" value={wVolume} onChange={(e) => setWVolume(e.target.value)} placeholder="Volume (optionnel)"
-                  className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
-                <span className="text-[9px] text-muted shrink-0">litres</span>
-              </div>
+              {wFlowRate && wDuration > 0 && (
+                <div className="font-mono text-[10px] text-muted">
+                  Volume estimé: <span className="text-cyan">{((parseFloat(wFlowRate) || 0) * wDuration / 60).toFixed(1)} L</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -185,7 +219,9 @@ export function ActivityForm() {
                   <span className="text-[9px] text-muted shrink-0">kg</span>
                 </div>
               </div>
-              <input type="text" value={aProduct} onChange={(e) => setAProduct(e.target.value)} placeholder="Nom du produit"
+              <input type="text" value={aCustomType} onChange={(e) => setACustomType(e.target.value)} placeholder="Type d'engrais (ex: NPK 15-15-15, fumier composté…)"
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+              <input type="text" value={aProduct} onChange={(e) => setAProduct(e.target.value)} placeholder="Nom du produit / marque"
                 className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
             </div>
           )}

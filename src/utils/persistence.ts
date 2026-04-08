@@ -71,12 +71,22 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
   data.density ??= 1
   data.exploitArea ??= 0
   data.fields ??= []
+  // Dedupe fields by id (StrictMode double-mount bug fallout). Keep first occurrence.
+  const seen = new Set<number>()
+  data.fields = data.fields.filter((f) => {
+    if (seen.has(f.id)) return false
+    seen.add(f.id)
+    return true
+  })
   data.fields.forEach((f) => {
     f.assignedEmployees ??= []
     f.assignedManager ??= null
     f.archived ??= false
     f.points ??= []
   })
+  // Keep counter aligned with the highest id present
+  const maxId = data.fields.reduce((m, f) => Math.max(m, f.id), 0)
+  if (data.fieldIdCounter < maxId) data.fieldIdCounter = maxId
   return data
 }
 

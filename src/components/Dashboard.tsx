@@ -369,15 +369,19 @@ function AgendaTab() {
         <div className="space-y-1">
           {recent.map((a) => {
             const fieldNames = a.fieldIds.map((id) => store.fields.find((f) => f.id === id)?.name).filter(Boolean).join(', ')
-            const label = a.type === 'watering' ? `Arrosage — ${IRRIGATION_LABELS[a.watering!.method]} (${a.watering!.durationMin} min)`
-              : a.type === 'amendment' ? `${a.amendment!.product} (${AMENDMENT_LABELS[a.amendment!.type]}, ${a.amendment!.quantityKg} kg)`
-              : a.other?.title || 'Activité'
+            const label = a.type === 'watering'
+              ? `Arrosage — ${IRRIGATION_LABELS[a.watering!.method]} (${a.watering!.durationMin} min${a.watering!.flowRatePerHour ? `, ${a.watering!.flowRatePerHour} L/h` : ''})`
+              : a.type === 'amendment'
+                ? `${a.amendment!.product} (${a.amendment!.customType || AMENDMENT_LABELS[a.amendment!.type]}, ${a.amendment!.quantityKg} kg)`
+                : a.other?.title || 'Activité'
             return (
               <div key={a.id} className="border border-border p-2.5 hover:bg-olive/5 transition-colors">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="font-mono text-[10px] text-muted">{a.date}</span>
                   <span className="font-mono text-xs text-text font-bold">{label}</span>
-                  <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+                  {a.type !== 'watering' && (
+                    <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+                  )}
                   {fieldNames && <span className="font-mono text-[10px] text-muted truncate">({fieldNames})</span>}
                   <button onClick={() => { store.setDashboardOpen(false); store.openActivityForm({ date: a.date, editId: a.id }) }}
                     className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]">✎</button>

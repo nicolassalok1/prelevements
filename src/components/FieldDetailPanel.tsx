@@ -393,12 +393,13 @@ function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: 'wa
                 <>
                   <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{IRRIGATION_LABELS[a.watering.method]}</span>
                   <span className="font-mono text-xs text-cyan">{a.watering.durationMin} min</span>
-                  {a.watering.volumeL != null && <span className="font-mono text-xs text-muted">{a.watering.volumeL} L</span>}
+                  {a.watering.flowRatePerHour != null && <span className="font-mono text-xs text-muted">{a.watering.flowRatePerHour} L/h</span>}
+                  {a.watering.flowRatePerHour == null && a.watering.volumeL != null && <span className="font-mono text-xs text-muted">{a.watering.volumeL} L</span>}
                 </>
               )}
               {a.type === 'amendment' && a.amendment && (
                 <>
-                  <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{AMENDMENT_LABELS[a.amendment.type]}</span>
+                  <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{a.amendment.customType || AMENDMENT_LABELS[a.amendment.type]}</span>
                   <span className="font-mono text-xs text-amber">{a.amendment.product}</span>
                   <span className="font-mono text-xs text-olive-lit">{a.amendment.quantityKg} kg</span>
                 </>
@@ -406,7 +407,9 @@ function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: 'wa
               {a.type === 'other' && a.other && (
                 <span className="font-mono text-xs text-amber font-bold">{a.other.title}</span>
               )}
-              <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+              {a.type !== 'watering' && (
+                <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
+              )}
               {!isArchived && (
                 <>
                   <button onClick={() => openActivityForm({ date: a.date, editId: a.id })} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>

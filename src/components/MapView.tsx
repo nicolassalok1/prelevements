@@ -9,6 +9,8 @@ import type { LatLng, Field } from '../types'
 // Module-level ref so other components can interact with the map programmatically.
 // Use getMap() to access it — don't read `globalMap` directly from other modules.
 let globalMap: L.Map | null = null
+// Guards against React StrictMode double-mount duplicating persisted data into the store.
+let persistedDataRestored = false
 
 export function getMap(): L.Map | null {
   return globalMap
@@ -160,8 +162,17 @@ export function MapView() {
     mapRef.current = map
     globalMap = map
 
-    // Restore persisted data
+    // Reset map-bound store state before restoring. This prevents StrictMode's
+    // double-mount from duplicating fields (the Zustand store outlives the
+    // component, and the previous mount's leaflet layers are dead after map.remove()).
+    if (persistedDataRestored) {
+      useAppStore.setState({
+        fields: [], fieldIdCounter: 0, selectedFieldId: null,
+        exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
+      })
+    }
     restorePersistedData(map)
+    persistedDataRestored = true
 
     return () => {
       map.remove()

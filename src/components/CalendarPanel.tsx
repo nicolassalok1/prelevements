@@ -15,7 +15,10 @@ const TYPE_COLOR: Record<ActivityType, string> = {
 function todayISO() { return new Date().toISOString().slice(0, 10) }
 function activityLabel(a: Activity): string {
   if (a.type === 'watering') return `${TYPE_LABELS.watering} — ${IRRIGATION_LABELS[a.watering!.method]}`
-  if (a.type === 'amendment') return `${a.amendment!.product} (${AMENDMENT_LABELS[a.amendment!.type]})`
+  if (a.type === 'amendment') {
+    const cat = a.amendment!.customType || AMENDMENT_LABELS[a.amendment!.type]
+    return `${a.amendment!.product} (${cat})`
+  }
   return a.other?.title || 'Activité'
 }
 
@@ -151,7 +154,9 @@ function ActivityRow({ activity }: { activity: Activity }) {
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`font-mono text-[9px] px-1.5 py-px border ${TYPE_COLOR[activity.type]}`}>{TYPE_LABELS[activity.type]}</span>
         <span className="font-mono text-xs text-text font-bold">{activityLabel(activity)}</span>
-        <span className="font-mono text-[10px] text-muted">{activity.workerCount} ouvrier{activity.workerCount > 1 ? 's' : ''}</span>
+        {activity.type !== 'watering' && (
+          <span className="font-mono text-[10px] text-muted">{activity.workerCount} ouvrier{activity.workerCount > 1 ? 's' : ''}</span>
+        )}
         <button onClick={() => store.openActivityForm({ date: activity.date, editId: activity.id })} className="ml-auto text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
         <button onClick={() => { if (confirm('Supprimer cette activité ?')) store.removeActivity(activity.id) }} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs" title="Supprimer">✕</button>
       </div>
@@ -165,7 +170,11 @@ function ActivityRow({ activity }: { activity: Activity }) {
         </div>
       )}
       {activity.type === 'watering' && activity.watering && (
-        <div className="font-mono text-[10px] text-muted mt-1">{activity.watering.durationMin} min{activity.watering.volumeL ? ` · ${activity.watering.volumeL} L` : ''}</div>
+        <div className="font-mono text-[10px] text-muted mt-1">
+          {activity.watering.durationMin} min
+          {activity.watering.flowRatePerHour ? ` · ${activity.watering.flowRatePerHour} L/h` : ''}
+          {activity.watering.flowRatePerHour ? ` · ≈${(activity.watering.flowRatePerHour * activity.watering.durationMin / 60).toFixed(1)} L` : (activity.watering.volumeL ? ` · ${activity.watering.volumeL} L` : '')}
+        </div>
       )}
       {activity.type === 'amendment' && activity.amendment && (
         <div className="font-mono text-[10px] text-muted mt-1">{activity.amendment.quantityKg} kg</div>
