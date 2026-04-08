@@ -158,16 +158,20 @@ export interface FieldElevationGrid {
 }
 
 /**
- * Pick a grid resolution adapted to the field area. Balances visual
- * quality of the 3D surface against API batch count (each batch = 100
- * points max). Batches are now fetched in parallel so a larger grid
- * is still fast.
+ * Pick a grid resolution adapted to the field area.
+ *
+ * Kept deliberately modest because Open-Meteo's free tier trips 429s on
+ * anything larger, AND the underlying DEM (SRTM / Copernicus, ~30 m
+ * horizontal) can't resolve finer detail anyway. The 3D renderer then
+ * subdivides this grid client-side (bilinear interpolation) to achieve
+ * visual smoothness without more API calls — see RENDER_SUBDIVISION in
+ * Terrain3DView.tsx.
  */
 export function adaptiveGridSize(areaHa: number): number {
-  if (areaHa < 0.5) return 32   // 1024 pts — ~10 parallel batches
-  if (areaHa < 2) return 40     // 1600 pts — ~16 parallel batches
-  if (areaHa < 10) return 48    // 2304 pts — ~23 parallel batches
-  return 56                     // 3136 pts — ~32 parallel batches
+  if (areaHa < 0.5) return 16   // 256 pts — 3 batches, ~1.5 s
+  if (areaHa < 2) return 20     // 400 pts — 4 batches, ~2 s
+  if (areaHa < 10) return 24    // 576 pts — 6 batches, ~2.5 s
+  return 28                     // 784 pts — 8 batches, ~3.5 s
 }
 
 /**

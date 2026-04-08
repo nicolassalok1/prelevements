@@ -26,6 +26,20 @@ import type { FieldElevationGrid } from '../utils/terrain-auto'
 import type { Field, LatLng } from '../types'
 
 // ═══════════════════════════════════════════════════════════════════════
+//  RENDER RESOLUTION
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * How many render vertices per DEM grid cell. A value of 3 means each
+ * cell becomes a 3×3 block → mesh vertex count = (width*3) × (height*3).
+ *
+ * The DEM's real resolution is ~30 m so fetching more points doesn't
+ * give more information — bilinear subdivision here produces the visual
+ * smoothness the user expects without spamming Open-Meteo.
+ */
+const RENDER_SUBDIVISION = 4
+
+// ═══════════════════════════════════════════════════════════════════════
 //  COLOR RAMP
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -173,27 +187,57 @@ function buildTerrainGeometry(
   const targetY = 0.3 // ~30% of the box half-side
   const yScale = (targetY * maxSide) / reliefRange / maxSide // → normalized units
 
-  // Build a PlaneGeometry with (width-1) × (height-1) segments.
-  const geo = new THREE.PlaneGeometry(halfX * 2, halfZ * 2, width - 1, height - 1)
+  // ── Bilinear sampling helpers over the coarse DEM grid ──
+  const sampleZ = (fi: number, fj: number): number => {
+    const i0 = Math.max(0, Math.min(width - 1, Math.floor(fi)))
+    const j0 = Math.max(0, Math.min(height - 1, Math.floor(fj)))
+    const i1 = Math.min(width - 1, i0 + 1)
+    const j1 = Math.min(height - 1, j0 + 1)
+    const di = fi - i0, dj = fj - j0
+    const z00 = elevations[j0 * width + i0]
+    const z10 = elevations[j0 * width + i1]
+    const z01 = elevations[j1 * width + i0]
+    const z11 = elevations[j1 * width + i1]
+    const zTop = z00 * (1 - di) + z10 * di
+    const zBot = z01 * (1 - di) + z11 * di
+    return zTop * (1 - dj) + zBot * dj
+  }
+  const sampleInside = (fi: number, fj: number): boolean => {
+    // Nearest-neighbor for the boolean mask — bilinear doesn't apply.
+    const i = Math.max(0, Math.min(width - 1, Math.round(fi)))
+    const j = Math.max(0, Math.min(height - 1, Math.round(fj)))
+    return inside[j * width + i]
+  }
+
+  // Build a denser render mesh via client-side bilinear subdivision.
+  // The DEM resolution is ~30 m so fetching more points doesn't give new
+  // information — we just need more vertices to avoid visible facets.
+  const renderW = Math.max(width, (width - 1) * RENDER_SUBDIVISION + 1)
+  const renderH = Math.max(height, (height - 1) * RENDER_SUBDIVISION + 1)
+
+  const geo = new THREE.PlaneGeometry(halfX * 2, halfZ * 2, renderW - 1, renderH - 1)
   // PlaneGeometry is XY aligned by default; we want XZ (horizontal plane).
   geo.rotateX(-Math.PI / 2)
 
-  // Override Y on each vertex with the (rescaled) elevation. PlaneGeometry
-  // vertex order matches row-major (j * width + i) of our grid.
+  // Override Y on each vertex using the bilinear sample from the coarse grid.
+  // PlaneGeometry vertex order matches row-major (j * renderW + i).
   const positions = geo.attributes.position as THREE.BufferAttribute
   const colors = new Float32Array(positions.count * 3)
-  for (let k = 0; k < positions.count; k++) {
-    const z = elevations[k]
-    const y = (z - altMin) * yScale
-    positions.setY(k, y)
+  for (let j = 0; j < renderH; j++) {
+    const fj = renderH === 1 ? 0 : (j / (renderH - 1)) * (height - 1)
+    for (let i = 0; i < renderW; i++) {
+      const fi = renderW === 1 ? 0 : (i / (renderW - 1)) * (width - 1)
+      const k = j * renderW + i
+      const z = sampleZ(fi, fj)
+      positions.setY(k, (z - altMin) * yScale)
 
-    const t = reliefRange > 0 ? (z - altMin) / reliefRange : 0.5
-    const c = terrainColor(t)
-    // Dim cells outside the polygon so the actual field stands out.
-    if (!inside[k]) c.multiplyScalar(0.35)
-    colors[k * 3 + 0] = c.r
-    colors[k * 3 + 1] = c.g
-    colors[k * 3 + 2] = c.b
+      const t = reliefRange > 0 ? (z - altMin) / reliefRange : 0.5
+      const c = terrainColor(t)
+      if (!sampleInside(fi, fj)) c.multiplyScalar(0.35)
+      colors[k * 3 + 0] = c.r
+      colors[k * 3 + 1] = c.g
+      colors[k * 3 + 2] = c.b
+    }
   }
   positions.needsUpdate = true
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
@@ -323,8 +367,8 @@ export function Terrain3DView({ field, onClose }: Terrain3DViewProps) {
         <span className="font-mono text-[10px] text-cyan tracking-[1px] uppercase flex-1">
           ▲ Vue 3D du terrain
         </span>
-        <span className="font-mono text-[9px] text-muted">
-          {gridSize}×{gridSize} ({totalPoints} pts)
+        <span className="font-mono text-[9px] text-muted" title={`Grille DEM fetchée: ${gridSize}×${gridSize} = ${totalPoints} pts · Mesh rendu: ${(gridSize - 1) * RENDER_SUBDIVISION + 1}²`}>
+          {gridSize}×{gridSize} DEM
         </span>
         <button
           onClick={onClose}
