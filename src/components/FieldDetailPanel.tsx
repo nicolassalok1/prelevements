@@ -461,21 +461,22 @@ function ReliefTab() {
   const [computing, setComputing] = useState(false)
 
   // Auto-trigger relief compute the first time the user opens this tab on a
-  // zone that has no relief yet — handles legacy fields (created before the
-  // auto-compute was wired) and fields loaded from older JSON snapshots.
+  // zone that has no relief yet. Also handles the spinner state so the user
+  // sees that something is happening during the 3-5 s API round-trip.
   // The trigger helper skips silently if relief is already set or if the
   // user has manually locked it, so this effect is a cheap no-op otherwise.
   useEffect(() => {
-    if (field.relief === undefined) {
-      void triggerAutoReliefIfNeeded(field.id)
-    }
+    if (field.relief !== undefined) return
+    setComputing(true)
+    triggerAutoReliefIfNeeded(field.id).finally(() => setComputing(false))
     // Depend on the id only — not on `field.relief` — so that re-renders
     // triggered by the compute result itself don't re-fire the effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [field.id])
 
   // Any manual edit clears the autoComputed flag → locks the relief against
-  // future background recomputations (e.g. after a polygon edit).
+  // future background recomputations (e.g. after a polygon edit). The
+  // updateField action persists to localStorage on every call.
   const update = (patch: Partial<typeof r>) =>
     updateField(field.id, { relief: { ...r, ...patch, autoComputed: false } })
 
@@ -521,6 +522,18 @@ function ReliefTab() {
           </span>
         )}
       </div>
+
+      {/* Visible loading banner while the background/manual compute is running.
+          The form stays interactive so the user can still edit manually, but
+          the banner makes it clear that a background fetch is in flight. */}
+      {computing && (
+        <div className="bg-cyan/10 border border-cyan/40 p-2.5 flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-cyan animate-pulse" />
+          <span className="font-mono text-[10px] text-cyan">
+            Calcul en cours via Open-Meteo (altitude + ensoleillement)…
+          </span>
+        </div>
+      )}
 
       <div>
         <Label>Exposition</Label>
