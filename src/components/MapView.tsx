@@ -115,26 +115,13 @@ export function MapView() {
       zoomControl: true,
     })
 
-    // ── Base layers (mutually exclusive) ──
-    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© Esri',
-      maxZoom: 19,
-      maxNativeZoom: 19,
-    })
-
-    const googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    // ── Single base layer: Google Satellite ──
+    // No layer selector — Esri and the old dark tiles were removed.
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       attribution: '© Google',
       maxZoom: 22,
       maxNativeZoom: 22,
-    })
-
-    googleSat.addTo(map)
-
-    L.control.layers(
-      { 'Google Satellite': googleSat, 'Esri Satellite': satellite },
-      {},
-      { position: 'topright', collapsed: false },
-    ).addTo(map)
+    }).addTo(map)
 
     const drawnItems = new L.FeatureGroup().addTo(map)
     drawnRef.current = drawnItems
