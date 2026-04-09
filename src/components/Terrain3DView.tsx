@@ -289,7 +289,12 @@ function buildTerrainGeometry(
     const u = (p.lng - west) / Math.max(1e-9, east - west)   // 0..1 east-west
     const v = (p.lat - south) / Math.max(1e-9, north - south) // 0..1 south-north
     const x = (u * 2 - 1) * halfX
-    const zCoord = -(v * 2 - 1) * halfZ // invert because plane was rotated
+    // The surface mesh uses PlaneGeometry(w, h, ...).rotateX(-π/2). Three.js
+    // PlaneGeometry iterates rows with iy=0 → local y = +halfH, which after
+    // the rotation becomes world z = -halfZ. Row iy=0 is also where DEM row
+    // j=0 (= south) is assigned in buildTerrainGeometry's main loop.
+    // Therefore: south (v=0) must map to world z = -halfZ, not +halfZ.
+    const zCoord = (v * 2 - 1) * halfZ
     // Bilinear altitude sample
     const fi = u * (width - 1)
     const fj = v * (height - 1)
