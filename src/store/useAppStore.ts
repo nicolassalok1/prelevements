@@ -25,6 +25,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentStep: 1, toastMessage: null, toastError: false,
   statusText: 'EN ATTENTE', helpOpen: false, dashboardOpen: false, dashboardTab: 'overview',
   fieldDetailOpen: false, fieldDetailTab: 'info',
+  sidebarOpen: false,
   calendarOpen: false, activityFormOpen: false, activityFormDate: null, activityFormEditId: null,
   activityFormPresetType: null, activityFormPresetFieldId: null,
 
@@ -228,6 +229,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   openFieldDetail: (fieldId, tab = 'info') => set({ selectedFieldId: fieldId, fieldDetailOpen: true, fieldDetailTab: tab }),
   closeFieldDetail: () => set({ fieldDetailOpen: false }),
   setFieldDetailTab: (tab) => set({ fieldDetailTab: tab }),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setCalendarOpen: (open) => set({ calendarOpen: open }),
   openActivityForm: (opts = {}) => set({
     activityFormOpen: true,

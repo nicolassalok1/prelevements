@@ -6,6 +6,8 @@ import type { Field } from '../types'
 
 export function RightPanel() {
   const fields = useAppStore((s) => s.fields).filter((f) => !f.archived)
+  const setDashboardOpen = useAppStore((s) => s.setDashboardOpen)
+  const setCalendarOpen = useAppStore((s) => s.setCalendarOpen)
   const [allPointsVisible, setAllPointsVisible] = useState(true)
 
   const totalPoints = fields.reduce((s, f) => s + f.points.length, 0)
@@ -23,8 +25,26 @@ export function RightPanel() {
 
   return (
     <aside className="bg-panel border-l border-border flex flex-col overflow-hidden">
+      {/* Dashboard + Agenda quick access */}
+      <div className="m-3 mb-0 flex gap-2 shrink-0">
+        <button
+          onClick={() => setDashboardOpen(true)}
+          className="flex-1 py-2 bg-amber/10 border border-amber text-amber font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-amber hover:text-black transition-all flex items-center justify-center gap-1.5"
+          title="Ouvrir le tableau de bord"
+        >
+          <span className="text-sm">◈</span> Dashboard
+        </button>
+        <button
+          onClick={() => setCalendarOpen(true)}
+          className="flex-1 py-2 bg-cyan/10 border border-cyan text-cyan font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-cyan hover:text-black transition-all flex items-center justify-center gap-1.5"
+          title="Ouvrir le calendrier des activités"
+        >
+          <span className="text-sm">◰</span> Agenda
+        </button>
+      </div>
+
       {/* Header */}
-      <div className="px-3 py-2.5 border-b border-border flex items-center gap-2">
+      <div className="px-3 py-2.5 mt-3 border-t border-b border-border flex items-center gap-2">
         <div className="font-mono text-[10px] text-olive-lit tracking-[2px] flex-1 flex items-center gap-1.5 before:content-[''] before:w-3 before:h-px before:bg-olive-lit uppercase">
           Champs & points
         </div>

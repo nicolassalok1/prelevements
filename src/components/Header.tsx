@@ -5,6 +5,8 @@ export function Header() {
   const statusText = useAppStore((s) => s.statusText)
   const setHelpOpen = useAppStore((s) => s.setHelpOpen)
   const helpOpen = useAppStore((s) => s.helpOpen)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const [online, setOnline] = useState(navigator.onLine)
 
   useEffect(() => {
@@ -17,6 +19,14 @@ export function Header() {
 
   return (
     <header className="col-span-full bg-panel border-b border-border flex items-center gap-4 px-5 h-[52px]">
+      <button
+        onClick={toggleSidebar}
+        className={`font-mono text-[13px] border w-7 h-7 flex items-center justify-center cursor-pointer transition-all
+          ${sidebarOpen ? 'border-olive-lit text-olive-lit bg-olive/10' : 'border-border text-muted hover:border-olive-lit hover:text-olive-lit'}`}
+        title={sidebarOpen ? 'Masquer les outils' : 'Afficher les outils'}
+      >
+        ☰
+      </button>
       <div className="font-mono text-[11px] text-olive-lit tracking-[2px] border border-olive px-2 py-0.5">
         ANRAC
       </div>

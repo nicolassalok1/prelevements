@@ -62,23 +62,6 @@ export function Sidebar() {
   return (
     <aside className="bg-panel border-r border-border flex flex-col overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-bg">
 
-      {/* Dashboard + Calendar buttons */}
-      <div className="m-3 mb-0 flex gap-2">
-        <button
-          onClick={() => store.setDashboardOpen(true)}
-          className="flex-1 py-2.5 bg-amber/10 border border-amber text-amber font-semibold text-sm tracking-[2px] uppercase cursor-pointer hover:bg-amber hover:text-black transition-all flex items-center justify-center gap-2"
-        >
-          <span className="text-base">◈</span> DASHBOARD
-        </button>
-        <button
-          onClick={() => store.setCalendarOpen(true)}
-          className="flex-1 py-2.5 bg-cyan/10 border border-cyan text-cyan font-semibold text-sm tracking-[2px] uppercase cursor-pointer hover:bg-cyan hover:text-black transition-all flex items-center justify-center gap-2"
-          title="Ouvrir le calendrier des activités"
-        >
-          <span className="text-base">◰</span> AGENDA
-        </button>
-      </div>
-
       {/* Offline / Terrain mode */}
       {store.exploitPolygon && <OfflineSection />}
 
