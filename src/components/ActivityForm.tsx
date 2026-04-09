@@ -5,6 +5,20 @@ import type { ActivityType, IrrigationMethod, AmendmentType } from '../types'
 const IRRIGATION_LABELS: Record<IrrigationMethod, string> = { goutte_a_goutte: 'Goutte à goutte', aspersion: 'Aspersion', gravitaire: 'Gravitaire', manuel: 'Manuel' }
 const AMENDMENT_LABELS: Record<AmendmentType, string> = { organique: 'Organique', mineral: 'Minéral', foliaire: 'Foliaire', correcteur: 'Correcteur' }
 
+/**
+ * Predefined expense categories — clickable chips that pre-fill the category
+ * text input. The input stays editable so users can still type any custom
+ * label (old entries with free-text categories keep working).
+ */
+const EXPENSE_CATEGORY_PRESETS: readonly string[] = [
+  'Charges (eau, électricité, gaz)',
+  'Installation',
+  'Salaires',
+  'Matos',
+  'Bouffe',
+  'Carburant',
+]
+
 function todayISO() { return new Date().toISOString().slice(0, 10) }
 
 export function ActivityForm() {
@@ -287,15 +301,35 @@ export function ActivityForm() {
           {type === 'expense' && (
             <div className="bg-bg border border-border p-3 space-y-2">
               <div className="font-mono text-[9px] text-muted uppercase tracking-[1px]">Dépense</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center gap-1">
-                  <input type="number" min={0} step="0.01" value={eAmount} onChange={(e) => setEAmount(e.target.value)} placeholder="Montant"
-                    className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted w-0" />
-                  <span className="text-[9px] text-muted shrink-0">DH</span>
-                </div>
-                <input type="text" value={eCategory} onChange={(e) => setECategory(e.target.value)} placeholder="Catégorie (ex: Carburant)"
-                  className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+              <div className="flex items-center gap-1">
+                <input type="number" min={0} step="0.01" value={eAmount} onChange={(e) => setEAmount(e.target.value)} placeholder="Montant"
+                  className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted w-0" />
+                <span className="text-[9px] text-muted shrink-0">DH</span>
               </div>
+              {/* Preset categories — quick-select chips. Click toggles the
+                  category back to empty when the active preset is clicked
+                  again (so the user can clear without retaping the input). */}
+              <div className="flex flex-wrap gap-1">
+                {EXPENSE_CATEGORY_PRESETS.map((preset) => {
+                  const active = eCategory.trim() === preset
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => setECategory(active ? '' : preset)}
+                      className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all ${
+                        active
+                          ? 'bg-red/20 border-red text-red'
+                          : 'bg-panel border-border text-muted hover:border-red/60 hover:text-red'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  )
+                })}
+              </div>
+              <input type="text" value={eCategory} onChange={(e) => setECategory(e.target.value)}
+                placeholder="Ou saisir une catégorie personnalisée"
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
             </div>
           )}
 
