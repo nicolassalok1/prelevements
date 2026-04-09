@@ -103,7 +103,10 @@ export function ActivityForm() {
     }
 
     const payload = {
-      date, type, fieldIds,
+      date, type,
+      // Expenses are strictly general — clear any stale fieldIds left over
+      // from a previous type switch, so they never appear under a zone tab.
+      fieldIds: type === 'expense' ? [] : fieldIds,
       // Watering and expense have no worker count — stored as 0 for schema consistency.
       workerCount: type === 'watering' || type === 'expense' ? 0 : workerCount,
       notes: notes.trim() || undefined,
@@ -176,25 +179,47 @@ export function ActivityForm() {
             )}
           </div>
 
-          {/* Zones — optional for expenses */}
-          <div>
-            <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">
-              Zones concernées{type === 'expense' && <span className="ml-1 text-muted normal-case">(optionnel)</span>}
-            </div>
-            {fields.length ? (
-              <div className="flex flex-wrap gap-1">
-                {fields.map((f) => {
-                  const on = fieldIds.includes(f.id)
-                  return (
-                    <button key={f.id} onClick={() => toggleField(f.id)}
-                      className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all flex items-center gap-1.5 ${on ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted hover:border-olive hover:text-olive-lit'}`}>
-                      <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />{f.name}
-                    </button>
-                  )
-                })}
+          {/* Zones — hidden entirely for expenses (general by design) */}
+          {type !== 'expense' && (
+            <div>
+              <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1 flex items-center gap-2">
+                <span>Zones concernées</span>
+                {/* "Toutes les zones" shortcut for multi-field activities like
+                    Autre (désherbage, taille, …). Keeps the grid compact when
+                    the whole exploitation is targeted. */}
+                {type === 'other' && fields.length > 0 && (
+                  (() => {
+                    const allSelected = fields.every((f) => fieldIds.includes(f.id))
+                    return (
+                      <button
+                        onClick={() => setFieldIds(allSelected ? [] : fields.map((f) => f.id))}
+                        className={`font-mono text-[9px] px-2 py-0.5 border cursor-pointer transition-all normal-case ${
+                          allSelected
+                            ? 'bg-olive border-olive-lit text-white'
+                            : 'bg-bg border-olive-lit/60 text-olive-lit hover:bg-olive/20'
+                        }`}
+                      >
+                        {allSelected ? '✓ Toutes les zones' : 'Toutes les zones'}
+                      </button>
+                    )
+                  })()
+                )}
               </div>
-            ) : <div className="text-[10px] text-muted italic">Aucune zone active.</div>}
-          </div>
+              {fields.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {fields.map((f) => {
+                    const on = fieldIds.includes(f.id)
+                    return (
+                      <button key={f.id} onClick={() => toggleField(f.id)}
+                        className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all flex items-center gap-1.5 ${on ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted hover:border-olive hover:text-olive-lit'}`}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />{f.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : <div className="text-[10px] text-muted italic">Aucune zone active.</div>}
+            </div>
+          )}
 
           {/* Type-specific fields */}
           {type === 'watering' && (

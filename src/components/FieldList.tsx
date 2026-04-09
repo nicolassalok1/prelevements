@@ -323,11 +323,10 @@ function FieldMeta({ field }: { field: Field }) {
     + s.activities.filter((a) => a.type === 'amendment' && a.fieldIds.includes(field.id)).length
   )
   const otherCount = useAppStore((s) => s.activities.filter((a) => a.type === 'other' && a.fieldIds.includes(field.id)).length)
-  const expenseCount = useAppStore((s) => s.activities.filter((a) => a.type === 'expense' && a.fieldIds.includes(field.id)).length)
   const soilCount = useAppStore((s) => s.soilAnalyses.filter((a) => a.fieldId === field.id).length)
   const relief = field.relief
 
-  const hasInfo = culture || waterCount || amendCount || otherCount || expenseCount || soilCount || relief
+  const hasInfo = culture || waterCount || amendCount || otherCount || soilCount || relief
   if (!hasInfo) return null
 
   return (
@@ -339,12 +338,11 @@ function FieldMeta({ field }: { field: Field }) {
         </div>
       )}
       {relief && <div><span className="text-cyan">Expo:</span> {relief.exposition}{relief.sunlightHours ? ` · ${relief.sunlightHours}h soleil` : ''}</div>}
-      {(waterCount > 0 || amendCount > 0 || otherCount > 0 || expenseCount > 0 || soilCount > 0) && (
+      {(waterCount > 0 || amendCount > 0 || otherCount > 0 || soilCount > 0) && (
         <div className="flex gap-2 mt-0.5 flex-wrap">
           {waterCount > 0 && <span className="text-cyan">{waterCount} arrosage{waterCount > 1 ? 's' : ''}</span>}
           {amendCount > 0 && <span className="text-olive-lit">{amendCount} engrais</span>}
           {otherCount > 0 && <span className="text-amber">{otherCount} autre{otherCount > 1 ? 's' : ''}</span>}
-          {expenseCount > 0 && <span className="text-red">{expenseCount} dépense{expenseCount > 1 ? 's' : ''}</span>}
           {soilCount > 0 && <span className="text-amber">{soilCount} analyse{soilCount > 1 ? 's' : ''}</span>}
         </div>
       )}

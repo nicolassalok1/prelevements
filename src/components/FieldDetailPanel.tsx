@@ -11,7 +11,6 @@ const TABS: { key: FieldDetailTab; label: string }[] = [
   { key: 'watering', label: 'Arrosage' },
   { key: 'amendments', label: 'Engrais' },
   { key: 'other', label: 'Autres' },
-  { key: 'expenses', label: 'Dépenses' },
   { key: 'soil', label: 'Sol' },
   { key: 'relief', label: 'Relief' },
 ]
@@ -62,7 +61,6 @@ export function FieldDetailPanel() {
           {tab === 'watering' && <WateringTab />}
           {tab === 'amendments' && <AmendmentsTab />}
           {tab === 'other' && <OtherActivitiesTab />}
-          {tab === 'expenses' && <ExpensesTab />}
           {tab === 'soil' && <SoilTab />}
           {tab === 'relief' && <ReliefTab />}
         </div>
@@ -118,12 +116,6 @@ function InfoTab() {
     + s.activities.filter((a) => a.type === 'amendment' && a.fieldIds.includes(field.id)).length
   )
   const otherCount = useAppStore((s) => s.activities.filter((a) => a.type === 'other' && a.fieldIds.includes(field.id)).length)
-  const expenseTotal = useAppStore((s) =>
-    s.activities
-      .filter((a) => a.type === 'expense' && a.fieldIds.includes(field.id))
-      .reduce((sum, a) => sum + (a.expense?.amount ?? 0), 0)
-  )
-  const expenseCount = useAppStore((s) => s.activities.filter((a) => a.type === 'expense' && a.fieldIds.includes(field.id)).length)
   const soilCount = useAppStore((s) => s.soilAnalyses.filter((a) => a.fieldId === field.id).length)
 
   return (
@@ -161,9 +153,6 @@ function InfoTab() {
           <div>Arrosages : <span className="text-cyan">{waterCount}</span></div>
           <div>Amendements : <span className="text-olive-lit">{amendCount}</span></div>
           <div>Autres activités : <span className="text-amber">{otherCount}</span></div>
-          {expenseCount > 0 && (
-            <div>Dépenses : <span className="text-red">{expenseCount}</span> · <span className="text-red font-bold">{formatDH(expenseTotal)}</span></div>
-          )}
           <div>Analyses sol : <span className="text-amber">{soilCount}</span></div>
           {field.relief && <div>Exposition : <span className="text-cyan">{EXPO_LABELS[field.relief.exposition]}</span></div>}
         </div>
@@ -297,13 +286,12 @@ function AmendmentsTab() {
   )
 }
 
-type ListableActivityType = 'watering' | 'amendment' | 'other' | 'expense'
+type ListableActivityType = 'watering' | 'amendment' | 'other'
 
 function QuickAddActivityButton({ fieldId, type, disabled }: { fieldId: number; type: ListableActivityType; disabled?: boolean }) {
   const openActivityForm = useAppStore((s) => s.openActivityForm)
   const label = type === 'watering' ? 'arrosage'
     : type === 'amendment' ? 'engrais'
-    : type === 'expense' ? 'dépense'
     : 'activité'
   return (
     <button
@@ -313,10 +301,6 @@ function QuickAddActivityButton({ fieldId, type, disabled }: { fieldId: number; 
       + Nouvelle {label} (via agenda)
     </button>
   )
-}
-
-function formatDH(amount: number): string {
-  return amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' DH'
 }
 
 // ═══════════════════════════════════════
@@ -334,32 +318,6 @@ function OtherActivitiesTab() {
   )
 }
 
-// ═══════════════════════════════════════
-//  DÉPENSES
-// ═══════════════════════════════════════
-
-function ExpensesTab() {
-  const field = useField()
-  const isArchived = !!field.archived
-  const allActivities = useAppStore((s) => s.activities)
-  const expenses = allActivities.filter((a) => a.type === 'expense' && a.fieldIds.includes(field.id))
-  const total = expenses.reduce((s, a) => s + (a.expense?.amount ?? 0), 0)
-
-  return (
-    <div className="space-y-4">
-      <QuickAddActivityButton fieldId={field.id} type="expense" disabled={isArchived} />
-      {expenses.length > 0 && (
-        <div className="border border-red/40 bg-red/5 p-3">
-          <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Total pour cette zone</div>
-          <div className="font-mono text-lg text-red">{formatDH(total)}</div>
-          <div className="font-mono text-[9px] text-muted mt-0.5">{expenses.length} dépense{expenses.length > 1 ? 's' : ''} enregistrée{expenses.length > 1 ? 's' : ''}</div>
-        </div>
-      )}
-      <ActivityList fieldId={field.id} type="expense" showEmpty />
-    </div>
-  )
-}
-
 function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: ListableActivityType; showEmpty?: boolean }) {
   const allActivities = useAppStore((s) => s.activities)
   const removeActivity = useAppStore((s) => s.removeActivity)
@@ -371,16 +329,12 @@ function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: Lis
   const isArchived = !!field.archived
 
   if (!sorted.length) {
-    if (showEmpty) {
-      const emptyText = type === 'expense' ? 'Aucune dépense pour ce champ.' : 'Aucune activité pour ce champ.'
-      return <Empty text={emptyText} />
-    }
+    if (showEmpty) return <Empty text="Aucune activité pour ce champ." />
     return null
   }
 
   const typeLabel = type === 'watering' ? 'arrosages'
     : type === 'amendment' ? 'engrais'
-    : type === 'expense' ? 'dépenses'
     : 'activités'
 
   return (
@@ -409,15 +363,7 @@ function ActivityList({ fieldId, type, showEmpty }: { fieldId: number; type: Lis
               {a.type === 'other' && a.other && (
                 <span className="font-mono text-xs text-amber font-bold">{a.other.title}</span>
               )}
-              {a.type === 'expense' && a.expense && (
-                <>
-                  {a.expense.category && (
-                    <span className="font-mono text-[10px] bg-panel border border-border px-1.5 py-px text-muted">{a.expense.category}</span>
-                  )}
-                  <span className="font-mono text-xs text-red font-bold">{formatDH(a.expense.amount)}</span>
-                </>
-              )}
-              {a.type !== 'watering' && a.type !== 'expense' && (
+              {a.type !== 'watering' && (
                 <span className="font-mono text-[10px] text-muted">· {a.workerCount} ouv.</span>
               )}
               {!isArchived && (
