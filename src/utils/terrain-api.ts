@@ -12,21 +12,26 @@
 import type { LatLng } from '../types'
 import type { ReliefSample } from './terrain'
 
-// Elevation API — Open-Elevation (https://open-elevation.com/)
-// Picked after testing 3 alternatives:
-//   • Open-Meteo /v1/elevation: aggressive IP-level rate limiter, bans
-//     the user's IP for minutes to hours on burst traffic (429 persist).
-//   • OpenTopoData /v1/srtm30m: works via curl but drops the
-//     Access-Control-Allow-Origin header behind Cloudflare, so the
-//     browser blocks the response with a CORS error.
-//   • Open-Elevation: same SRTM source, simple JSON POST API,
-//     `Access-Control-Allow-Origin: *`, no documented rate limit.
-// Same underlying DEM (SRTM GL1 30m) so data quality is identical.
-const ELEVATION_URL = 'https://api.open-elevation.com/api/v1/lookup'
+// Elevation API — same-origin proxy at /api/elevation.
+//
+// The client always calls our own origin, never an external elevation
+// host. The actual upstream (Open-Meteo) lives behind a Vercel serverless
+// function in production and a Vite dev middleware locally. This gives:
+//   • Zero CORS concerns (same origin).
+//   • Server-side outbound IP (Vercel edge / localhost), so Open-Meteo's
+//     per-user-IP burst limiter no longer trips 429s for our users.
+//   • Edge caching at Vercel's CDN — SRTM values are static, so the
+//     proxy sets Cache-Control for 1 day fresh + 1 week stale.
+//
+// Previous attempts and why they failed:
+//   • Direct Open-Meteo /v1/elevation: 429 persistent IP ban on bursts.
+//   • Direct OpenTopoData /v1/srtm30m: Cloudflare strips ACAO → CORS fail.
+//   • Direct Open-Elevation: flaky depending on user network/firewall.
+const ELEVATION_URL = '/api/elevation'
 const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
-const ELEVATION_BATCH_SIZE = 100        // safe batch size (no documented limit)
-const ELEVATION_CONCURRENCY = 2         // gentle parallelism — the service is shared free
-const ELEVATION_INTER_BATCH_DELAY_MS = 200
+const ELEVATION_BATCH_SIZE = 100        // proxy enforces the same upstream limit
+const ELEVATION_CONCURRENCY = 3         // same-origin → no browser preflight per req
+const ELEVATION_INTER_BATCH_DELAY_MS = 50
 const RETRY_STATUSES = new Set([429, 502, 503, 504])
 const RETRY_MAX_ATTEMPTS = 5            // 1 initial + 4 retries
 
@@ -117,41 +122,34 @@ async function runWithConcurrency<T>(
   if (firstError != null) throw firstError
 }
 
-interface OpenElevationResult {
-  latitude: number
-  longitude: number
-  elevation: number | null
-}
-interface OpenElevationResponse {
-  results?: OpenElevationResult[]
+interface ElevationProxyResponse {
+  elevations?: number[]
+  error?: string
 }
 
 /**
- * Query Open-Elevation for a batch of points. Uses the POST JSON API:
+ * Query our own elevation proxy for a batch of points. The proxy lives at
+ * {@link ELEVATION_URL} — Vercel serverless in prod, Vite middleware in dev.
+ * Same contract either way:
  *
- *   POST /api/v1/lookup
- *   { "locations": [{ "latitude": 10, "longitude": 20 }, …] }
- *
- * Response shape:
- *   { "results": [{ "latitude": 10, "longitude": 20, "elevation": 123 }, …] }
- *
- * Missing cells (dataset void, etc.) come back as `elevation: null` — we
- * map those to 0 so the mesh stays continuous.
+ *   POST /api/elevation
+ *   Body:     { "locations": [{ "lat": <num>, "lng": <num> }, …] }
+ *   Response: { "elevations": [<num>, …] }   — same length as locations
  */
 async function fetchElevationBatch(batch: LatLng[]): Promise<number[]> {
   const body = JSON.stringify({
-    locations: batch.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+    locations: batch.map((p) => ({ lat: p.lat, lng: p.lng })),
   })
-  const data = await fetchJsonPost<OpenElevationResponse>(
+  const data = await fetchJsonPost<ElevationProxyResponse>(
     ELEVATION_URL,
     body,
-    'Pas de connexion à Open-Elevation',
+    "Pas de connexion au serveur d'élévation",
     'élévation',
   )
-  if (!data.results || data.results.length !== batch.length) {
-    throw new TerrainApiError("Données d'élévation incomplètes")
+  if (!data.elevations || data.elevations.length !== batch.length) {
+    throw new TerrainApiError(data.error || "Données d'élévation incomplètes")
   }
-  return data.results.map((r) => (typeof r.elevation === 'number' ? r.elevation : 0))
+  return data.elevations
 }
 
 // ═══════════════════════════════════════════════════════════════════════
