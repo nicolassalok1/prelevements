@@ -115,6 +115,7 @@ export function MapView() {
       zoomControl: true,
     })
 
+    // ── Base layers (mutually exclusive) ──
     const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: '© Esri',
       maxZoom: 19,
@@ -127,18 +128,26 @@ export function MapView() {
       maxNativeZoom: 22,
     })
 
-    const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© CartoDB',
-      maxZoom: 22,
-      maxNativeZoom: 20,
-    })
+    // ── Overlay: Esri World Hillshade ──
+    // Grayscale shading derived from a global DEM. Overlaid with low opacity
+    // on top of the satellite base layer it reveals pentes and reliefs sans
+    // masquer la couleur de la végétation. Gratuit, sans clé API.
+    const hillshade = L.tileLayer(
+      'https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+      {
+        attribution: '© Esri World Hillshade',
+        maxZoom: 19,
+        maxNativeZoom: 19,
+        opacity: 0.55,
+      },
+    )
 
     googleSat.addTo(map)
 
     L.control.layers(
-      { 'Google Satellite': googleSat, 'Esri Satellite': satellite, 'Sombre': dark },
-      {},
-      { position: 'topright', collapsed: false }
+      { 'Google Satellite': googleSat, 'Esri Satellite': satellite },
+      { 'Relief (pentes)': hillshade },
+      { position: 'topright', collapsed: false },
     ).addTo(map)
 
     const drawnItems = new L.FeatureGroup().addTo(map)

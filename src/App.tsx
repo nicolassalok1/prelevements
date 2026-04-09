@@ -50,7 +50,7 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
           {/* The actual Sidebar panel, anchored to the left under the header */}
-          <div className="fixed top-[52px] bottom-0 left-0 w-[320px] z-[901] shadow-2xl animate-[slideIn_0.2s_ease-out]">
+          <div className="fixed top-[52px] bottom-0 left-0 w-[320px] z-[901] shadow-2xl animate-[slideInLeft_0.2s_ease-out]">
             <Sidebar />
           </div>
         </>
