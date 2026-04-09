@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { computeFieldRelief } from '../utils/terrain-auto'
-import type { Employee, SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition, Field } from '../types'
+import type { SeedType, DashboardTab, IrrigationMethod, AmendmentType, Exposition, Field } from '../types'
 
 const NAV_ITEMS: { key: DashboardTab; icon: string; label: string }[] = [
   { key: 'overview', icon: '◈', label: 'Vue d\'ensemble' },
   { key: 'cultures', icon: '❋', label: 'Cultures' },
-  { key: 'personnel', icon: '◉', label: 'Personnel' },
   { key: 'agenda', icon: '◰', label: 'Agenda' },
   { key: 'watering', icon: '◇', label: 'Arrosage' },
   { key: 'amendments', icon: '▣', label: 'Amendements' },
@@ -48,7 +47,6 @@ export function Dashboard() {
         <div className="flex-1 overflow-y-auto p-6">
           {tab === 'overview' && <OverviewTab />}
           {tab === 'cultures' && <CulturesTab />}
-          {tab === 'personnel' && <PersonnelTab />}
           {tab === 'agenda' && <AgendaTab />}
           {tab === 'watering' && <WateringTab />}
           {tab === 'amendments' && <AmendmentsTab />}
@@ -221,82 +219,6 @@ function CulturesTab() {
         </div>
       ) : <EmptyState text="Aucun champ défini." />}
     </>
-  )
-}
-
-// ═══════════════════════════════════════
-//  PERSONNEL
-// ═══════════════════════════════════════
-
-function PersonnelTab() {
-  const store = useAppStore()
-  const [name, setName] = useState(''); const [role, setRole] = useState<Employee['role']>('employe'); const [phone, setPhone] = useState(''); const [editId, setEditId] = useState<number | null>(null)
-
-  const handleSubmit = () => {
-    if (!name.trim()) return
-    if (editId !== null) { store.updateEmployee(editId, { name: name.trim(), role, phone: phone.trim() || undefined }); store.toast(`✓ ${name.trim()} mis à jour`); setEditId(null) }
-    else { store.addEmployee({ name: name.trim(), role, phone: phone.trim() || undefined }); store.toast(`✓ ${name.trim()} ajouté`) }
-    setName(''); setPhone(''); setRole('employe')
-  }
-
-  const managers = store.employees.filter((e) => e.role === 'responsable')
-  const workers = store.employees.filter((e) => e.role === 'employe')
-
-  return (
-    <>
-      <TabHeader title="Personnel" subtitle="Gérer les employés et responsables. Le nombre d'ouvriers est saisi par activité depuis l'agenda." />
-
-      {/* Add form */}
-      <div className="bg-bg border border-border p-4 mb-5">
-        <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase mb-2">{editId ? 'Modifier' : 'Ajouter'}</div>
-        <div className="flex gap-2 mb-2">
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom complet"
-            className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <select value={role} onChange={(e) => setRole(e.target.value as Employee['role'])}
-            className="font-mono text-xs bg-panel border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit">
-            <option value="employe">Employé</option>
-            <option value="responsable">Responsable</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone (optionnel)"
-            className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-          <button className="btn-active" onClick={handleSubmit}>{editId ? '✓ Sauver' : '+ Ajouter'}</button>
-          {editId && <button className="btn-danger" onClick={() => { setEditId(null); setName(''); setPhone('') }}>Annuler</button>}
-        </div>
-      </div>
-
-      {/* Lists */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div>
-          <div className="font-mono text-[10px] text-amber tracking-[2px] uppercase mb-2">Responsables ({managers.length})</div>
-          {managers.map((emp) => (
-            <EmpRow key={emp.id} emp={emp} onEdit={(e) => { setEditId(e.id); setName(e.name); setRole(e.role); setPhone(e.phone || '') }} onDel={(id) => store.removeEmployee(id)} />
-          ))}
-          {!managers.length && <EmptyState text="Aucun responsable." />}
-        </div>
-        <div>
-          <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase mb-2">Employés ({workers.length})</div>
-          {workers.map((emp) => (
-            <EmpRow key={emp.id} emp={emp} onEdit={(e) => { setEditId(e.id); setName(e.name); setRole(e.role); setPhone(e.phone || '') }} onDel={(id) => store.removeEmployee(id)} />
-          ))}
-          {!workers.length && <EmptyState text="Aucun employé." />}
-        </div>
-      </div>
-
-    </>
-  )
-}
-
-function EmpRow({ emp, onEdit, onDel }: { emp: Employee; onEdit: (e: Employee) => void; onDel: (id: number) => void }) {
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-2 border-b border-border/50 hover:bg-olive/5 transition-colors">
-      <div className={`w-2 h-2 rounded-full shrink-0 ${emp.role === 'responsable' ? 'bg-amber' : 'bg-olive-lit'}`} />
-      <span className="font-mono text-xs text-text flex-1">{emp.name}</span>
-      {emp.phone && <span className="font-mono text-[10px] text-muted">{emp.phone}</span>}
-      <button onClick={() => onEdit(emp)} className="text-muted text-[10px] bg-transparent border-none cursor-pointer hover:text-olive-lit">✎</button>
-      <button onClick={() => onDel(emp.id)} className="text-muted text-xs bg-transparent border-none cursor-pointer hover:text-red">✕</button>
-    </div>
   )
 }
 

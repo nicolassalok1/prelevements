@@ -183,7 +183,7 @@ export type DrawTarget = 'exploit' | 'field' | null
 export type EditTarget = { type: 'exploit' } | { type: 'field'; fieldId: number } | null
 export type GenerationMethod = 'grid' | 'zigzag' | 'random'
 
-export type DashboardTab = 'overview' | 'cultures' | 'personnel' | 'agenda' | 'watering' | 'amendments' | 'soil' | 'relief'
+export type DashboardTab = 'overview' | 'cultures' | 'agenda' | 'watering' | 'amendments' | 'soil' | 'relief'
 export type FieldDetailTab = 'info' | 'culture' | 'watering' | 'amendments' | 'other' | 'expenses' | 'soil' | 'relief'
 
 export interface AppState {
