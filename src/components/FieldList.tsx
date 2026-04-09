@@ -141,7 +141,7 @@ function FieldCard({ field: f, isSelected, onSelect }: {
         )}
       </div>
       <div className="font-mono text-[10px] text-muted leading-relaxed">
-        {f.area.toFixed(2)} ha · {Math.round(f.perimeter)} m
+        {f.area.toFixed(2)} ha · {Math.round(f.area * 10000).toLocaleString('fr-FR')} m²
       </div>
       <FieldMeta field={f} />
       {addingPointHere && <AddPointInputs fieldId={f.id} />}
