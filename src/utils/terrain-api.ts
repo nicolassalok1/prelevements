@@ -12,18 +12,22 @@
 import type { LatLng } from '../types'
 import type { ReliefSample } from './terrain'
 
-// Elevation API — OpenTopoData (https://www.opentopodata.org/)
-// Chosen over Open-Meteo because Open-Meteo's free-tier elevation endpoint
-// aggressively rate-limits burst traffic (429 even with 4 concurrent reqs
-// and 1s delays) and the cooldown can persist for hours per IP.
-// OpenTopoData: SRTM GL1 30m worldwide, 100 locations/req, 1 req/s public
-// limit, CORS enabled, no API key.
-const ELEVATION_URL = 'https://api.opentopodata.org/v1/srtm30m'
+// Elevation API — Open-Elevation (https://open-elevation.com/)
+// Picked after testing 3 alternatives:
+//   • Open-Meteo /v1/elevation: aggressive IP-level rate limiter, bans
+//     the user's IP for minutes to hours on burst traffic (429 persist).
+//   • OpenTopoData /v1/srtm30m: works via curl but drops the
+//     Access-Control-Allow-Origin header behind Cloudflare, so the
+//     browser blocks the response with a CORS error.
+//   • Open-Elevation: same SRTM source, simple JSON POST API,
+//     `Access-Control-Allow-Origin: *`, no documented rate limit.
+// Same underlying DEM (SRTM GL1 30m) so data quality is identical.
+const ELEVATION_URL = 'https://api.open-elevation.com/api/v1/lookup'
 const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
-const ELEVATION_BATCH_SIZE = 100        // OpenTopoData hard limit per request
-const ELEVATION_CONCURRENCY = 1         // sequential — OpenTopoData is strict at 1 req/s
-const ELEVATION_INTER_BATCH_DELAY_MS = 1100 // just above their 1 req/s public limit
-const RETRY_STATUSES = new Set([429, 503, 504])
+const ELEVATION_BATCH_SIZE = 100        // safe batch size (no documented limit)
+const ELEVATION_CONCURRENCY = 2         // gentle parallelism — the service is shared free
+const ELEVATION_INTER_BATCH_DELAY_MS = 200
+const RETRY_STATUSES = new Set([429, 502, 503, 504])
 const RETRY_MAX_ATTEMPTS = 5            // 1 initial + 4 retries
 
 /** Unified error type for all network/parsing failures in this module. */
@@ -113,40 +117,37 @@ async function runWithConcurrency<T>(
   if (firstError != null) throw firstError
 }
 
-interface OpenTopoDataResult {
+interface OpenElevationResult {
+  latitude: number
+  longitude: number
   elevation: number | null
-  location: { lat: number; lng: number }
 }
-interface OpenTopoDataResponse {
-  results?: OpenTopoDataResult[]
-  status?: string
-  error?: string
+interface OpenElevationResponse {
+  results?: OpenElevationResult[]
 }
 
 /**
- * Query OpenTopoData for a batch of elevations. Uses the pipe-separated
- * `locations` query parameter format: "lat1,lng1|lat2,lng2|…".
+ * Query Open-Elevation for a batch of points. Uses the POST JSON API:
+ *
+ *   POST /api/v1/lookup
+ *   { "locations": [{ "latitude": 10, "longitude": 20 }, …] }
  *
  * Response shape:
- *   { "results": [{ "elevation": 101, "location": {…} }, …], "status": "OK" }
+ *   { "results": [{ "latitude": 10, "longitude": 20, "elevation": 123 }, …] }
  *
- * Missing cells (over the ocean, dataset void, etc.) come back as
- * `elevation: null` — we map those to 0 so the mesh stays continuous.
+ * Missing cells (dataset void, etc.) come back as `elevation: null` — we
+ * map those to 0 so the mesh stays continuous.
  */
 async function fetchElevationBatch(batch: LatLng[]): Promise<number[]> {
-  const locations = batch
-    .map((p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`)
-    .join('|')
-  const url = `${ELEVATION_URL}?locations=${locations}`
-
-  const data = await fetchJson<OpenTopoDataResponse>(
-    url,
-    "Pas de connexion à OpenTopoData (élévation)",
+  const body = JSON.stringify({
+    locations: batch.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+  })
+  const data = await fetchJsonPost<OpenElevationResponse>(
+    ELEVATION_URL,
+    body,
+    'Pas de connexion à Open-Elevation',
     'élévation',
   )
-  if (data.status && data.status !== 'OK') {
-    throw new TerrainApiError(`OpenTopoData élévation: ${data.error || data.status}`)
-  }
   if (!data.results || data.results.length !== batch.length) {
     throw new TerrainApiError("Données d'élévation incomplètes")
   }
@@ -207,16 +208,23 @@ export async function fetchYearlySunshineHours(point: LatLng): Promise<number> {
 
 /**
  * JSON fetch wrapper with exponential backoff on transient statuses
- * (429 Too Many Requests, 503, 504) so dense grids don't fail entirely
- * on Open-Meteo's burst limit. Non-retriable failures are normalized
- * into TerrainApiError with clear, user-facing French messages.
+ * (429 Too Many Requests, 5xx) so dense grids don't fail entirely on
+ * burst limits. Non-retriable failures are normalized into TerrainApiError
+ * with clear, user-facing French messages.
+ *
+ * @param init  Optional fetch RequestInit (method, headers, body).
  */
-async function fetchJson<T>(url: string, offlineMsg: string, label: string): Promise<T> {
+async function fetchJson<T>(
+  url: string,
+  offlineMsg: string,
+  label: string,
+  init?: RequestInit,
+): Promise<T> {
   let lastStatus = 0
   for (let attempt = 0; attempt < RETRY_MAX_ATTEMPTS; attempt++) {
     let resp: Response
     try {
-      resp = await fetch(url)
+      resp = await fetch(url, init)
     } catch (e) {
       // Network errors are not retried — the user is probably offline.
       throw new TerrainApiError(offlineMsg, e)
@@ -230,18 +238,34 @@ async function fetchJson<T>(url: string, offlineMsg: string, label: string): Pro
     }
     lastStatus = resp.status
     if (!RETRY_STATUSES.has(resp.status) || attempt === RETRY_MAX_ATTEMPTS - 1) {
-      throw new TerrainApiError(`Open-Meteo ${label}: HTTP ${resp.status}`)
+      throw new TerrainApiError(`${label}: HTTP ${resp.status}`)
     }
     // Exponential backoff with jitter: 1s, 2s, 4s, 8s (+ 0-500ms).
     // Honor Retry-After if the server provides it (in seconds or HTTP-date
-    // format — we only parse the numeric form, which Open-Meteo uses).
+    // format — we only parse the numeric form).
     const retryAfterHeader = resp.headers.get('Retry-After')
     const retryAfterMs = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 0
     const backoff = Math.max(retryAfterMs, 1000 * Math.pow(2, attempt) + Math.random() * 500)
     await sleep(backoff)
   }
   // Unreachable — the loop either returns, throws, or sleeps and retries.
-  throw new TerrainApiError(`Open-Meteo ${label}: HTTP ${lastStatus} après ${RETRY_MAX_ATTEMPTS} tentatives`)
+  throw new TerrainApiError(`${label}: HTTP ${lastStatus} après ${RETRY_MAX_ATTEMPTS} tentatives`)
+}
+
+/**
+ * POST wrapper around {@link fetchJson} for JSON-body APIs.
+ */
+async function fetchJsonPost<T>(
+  url: string,
+  body: string,
+  offlineMsg: string,
+  label: string,
+): Promise<T> {
+  return fetchJson<T>(url, offlineMsg, label, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body,
+  })
 }
 
 function sleep(ms: number): Promise<void> {

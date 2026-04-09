@@ -408,13 +408,10 @@ export function Terrain3DView({ field, onClose }: Terrain3DViewProps) {
             <div className="flex flex-col items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-cyan animate-pulse" />
               <span className="font-mono text-[10px] text-cyan">
-                Récupération de la grille d'altitude (OpenTopoData)…
+                Récupération de la grille d'altitude…
               </span>
               <span className="font-mono text-[9px] text-muted">
                 {totalPoints} points · ~{Math.ceil(totalPoints / 100)} requêtes
-              </span>
-              <span className="font-mono text-[9px] text-muted">
-                ~{Math.ceil(totalPoints / 100) * 1.2} s (limite publique 1 req/s)
               </span>
             </div>
           </div>
