@@ -490,12 +490,18 @@ function SoilTab() {
   const [fieldId, setFieldId] = useState(store.fields[0]?.id || 0)
   const [filterField, setFilterField] = useState(0)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [ph, setPh] = useState(7.0); const [n, setN] = useState(0); const [p, setP] = useState(0); const [k, setK] = useState(0)
+  const [ph, setPh] = useState(7.0); const [ec, setEc] = useState(0); const [n, setN] = useState(0); const [p, setP] = useState(0); const [k, setK] = useState(0)
   const [om, setOm] = useState(0); const [texture, setTexture] = useState(''); const [notes, setNotes] = useState('')
 
   const handleAdd = () => {
     if (!fieldId) { store.toast('⚠ Sélectionnez un champ', true); return }
-    store.addSoilAnalysis({ date, fieldId, ph, nitrogen: n, phosphorus: p, potassium: k, organicMatter: om, texture: texture || undefined, notes: notes || undefined })
+    store.addSoilAnalysis({
+      date, fieldId, ph,
+      ec: ec > 0 ? ec : undefined,
+      nitrogen: n, phosphorus: p, potassium: k, organicMatter: om,
+      texture: texture || undefined,
+      notes: notes || undefined,
+    })
     store.toast('✓ Analyse enregistrée')
     setNotes(''); setTexture('')
   }
@@ -504,10 +510,11 @@ function SoilTab() {
   const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
 
   const phColor = (v: number) => v < 6 ? 'text-red' : v > 8 ? 'text-red' : v >= 6.5 && v <= 7.5 ? 'text-olive-lit' : 'text-amber'
+  const ecColor = (v: number) => v <= 0 ? 'text-muted' : v < 0.7 ? 'text-olive-lit' : v <= 3 ? 'text-amber' : 'text-red'
 
   return (
     <>
-      <TabHeader title="Analyse des sols" subtitle="Résultats d'analyses NPK, pH, matière organique" />
+      <TabHeader title="Analyse des sols" subtitle="Résultats d'analyses pH, EC, NPK, matière organique" />
 
       <div className="bg-bg border border-border p-4 mb-5">
         <div className="font-mono text-[10px] text-olive-lit tracking-[2px] uppercase mb-3">Nouvelle analyse</div>
@@ -519,8 +526,15 @@ function SoilTab() {
               className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-2 mb-2">
-          {[['pH', ph, setPh, 0, 14, 0.1, ''], ['N', n, setN, 0, 999, 1, 'mg/kg'], ['P', p, setP, 0, 999, 1, 'mg/kg'], ['K', k, setK, 0, 999, 1, 'mg/kg'], ['M.O.', om, setOm, 0, 100, 0.1, '%']].map(([lbl, val, setter, min, max, step, unit]) => (
+        <div className="grid grid-cols-6 gap-2 mb-2">
+          {[
+            ['pH', ph, setPh, 0, 14, 0.1, ''],
+            ['EC', ec, setEc, 0, 20, 0.1, 'mS/cm'],
+            ['N', n, setN, 0, 999, 1, 'mg/kg'],
+            ['P', p, setP, 0, 999, 1, 'mg/kg'],
+            ['K', k, setK, 0, 999, 1, 'mg/kg'],
+            ['M.O.', om, setOm, 0, 100, 0.1, '%'],
+          ].map(([lbl, val, setter, min, max, step, unit]) => (
             <div key={lbl as string} className="flex flex-col gap-0.5">
               <label className="text-[9px] text-muted uppercase tracking-[.5px]">{lbl as string} <span className="text-[8px]">{unit as string}</span></label>
               <input type="number" value={val as number} onChange={(e) => (setter as (v: number) => void)(parseFloat(e.target.value) || 0)}
@@ -554,8 +568,12 @@ function SoilTab() {
                   {s.texture && <span className="font-mono text-[10px] text-muted border border-border px-1.5 py-px">{s.texture}</span>}
                   <button onClick={() => store.removeSoilAnalysis(s.id)} className="ml-auto text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-6 gap-2">
                   <div className="text-center"><div className="text-[9px] text-muted">pH</div><div className={`font-mono text-lg font-bold ${phColor(s.ph)}`}>{s.ph}</div></div>
+                  <div className="text-center">
+                    <div className="text-[9px] text-muted">EC</div>
+                    <div className={`font-mono text-lg ${ecColor(s.ec ?? 0)}`}>{s.ec != null ? s.ec : '—'}</div>
+                  </div>
                   <div className="text-center"><div className="text-[9px] text-muted">N</div><div className="font-mono text-lg text-olive-lit">{s.nitrogen}</div></div>
                   <div className="text-center"><div className="text-[9px] text-muted">P</div><div className="font-mono text-lg text-amber">{s.phosphorus}</div></div>
                   <div className="text-center"><div className="text-[9px] text-muted">K</div><div className="font-mono text-lg text-cyan">{s.potassium}</div></div>

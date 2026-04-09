@@ -81,6 +81,7 @@ export interface SoilAnalysis {
   date: string
   fieldId: number
   ph: number
+  ec?: number           // conductivité électrique en mS/cm (salinité)
   nitrogen: number      // N en mg/kg
   phosphorus: number    // P en mg/kg
   potassium: number     // K en mg/kg
