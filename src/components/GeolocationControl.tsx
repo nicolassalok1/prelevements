@@ -80,7 +80,10 @@ export function GeolocationControl() {
   const nearestField = userLocation ? findNearestField(userLocation.lat, userLocation.lng, fields) : null
 
   return (
-    <div className="absolute top-3 left-3 z-[500] flex flex-col gap-2 pointer-events-none">
+    // Stacked below Leaflet's built-in zoom controls (which live at top-left,
+    // ~70 px tall). We offset by 88 px so this cluster sits comfortably
+    // under them without overlap.
+    <div className="absolute top-[88px] left-3 z-[500] flex flex-col gap-2 pointer-events-none">
       {/* Main locate button */}
       <button
         onClick={handleToggle}
