@@ -157,7 +157,7 @@ export interface ReliefInfo {
   autoComputed?: boolean
 }
 
-// ── Fields ──
+// ── Parcelles (Fields) ──
 
 export interface Field {
   id: number
@@ -173,6 +173,7 @@ export interface Field {
   relief?: ReliefInfo
   archived?: boolean
   archivedAt?: string
+  champId?: number            // ID du champ parent (undefined = parcelle libre)
   // Leaflet layers (runtime only)
   layer?: L.Polygon
   labelMarker?: L.Marker
@@ -180,8 +181,21 @@ export interface Field {
   archivedVisible?: boolean   // runtime: show archived zone on map
 }
 
+// ── Champs (groupes de parcelles) ──
+
+export interface Champ {
+  id: number
+  name: string
+  color: string
+  parcelleIds: number[]       // IDs des parcelles composant ce champ
+  customOutline?: LatLng[]    // contour manuellement édité (sinon enveloppe convexe auto)
+  // Leaflet layers (runtime only)
+  layer?: L.Polygon
+  labelMarker?: L.Marker
+}
+
 export type DrawTarget = 'exploit' | 'field' | null
-export type EditTarget = { type: 'exploit' } | { type: 'field'; fieldId: number } | null
+export type EditTarget = { type: 'exploit' } | { type: 'field'; fieldId: number } | { type: 'champ'; champId: number } | null
 export type GenerationMethod = 'grid' | 'zigzag' | 'random'
 
 export type DashboardTab = 'overview' | 'cultures' | 'agenda' | 'watering' | 'amendments' | 'soil' | 'relief'
@@ -194,10 +208,15 @@ export interface AppState {
   exploitLayer: L.Polygon | null
   exploitLabel: L.Marker | null
 
-  // Fields
+  // Fields (parcelles)
   fields: Field[]
   fieldIdCounter: number
   selectedFieldId: number | null
+
+  // Champs (groupes de parcelles)
+  champs: Champ[]
+  champIdCounter: number
+  selectedChampId: number | null
 
   // Drawing
   drawTarget: DrawTarget
@@ -256,7 +275,17 @@ export interface AppState {
   setExploitation: (polygon: LatLng[], area: number, layer: L.Polygon, label: L.Marker) => void
   clearExploitation: () => void
 
-  // Fields
+  // Champs
+  addChamp: (champ: Champ) => void
+  removeChamp: (id: number) => void
+  updateChamp: (id: number, updates: Partial<Pick<Champ, 'name' | 'color'>>) => void
+  selectChamp: (id: number | null) => void
+  addParcelleToChamp: (champId: number, fieldId: number) => void
+  removeParcelleFromChamp: (champId: number, fieldId: number) => void
+  setChampCustomOutline: (champId: number, outline: LatLng[] | undefined) => void
+  setChampLayer: (champId: number, layer: L.Polygon, label: L.Marker) => void
+
+  // Fields (parcelles)
   addField: (field: Field) => void
   removeField: (id: number) => void
   selectField: (id: number | null) => void

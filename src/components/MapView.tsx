@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet-draw'
 import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
-import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
+import { calcArea, calcPerimeter, isInsidePolygon, computeChampOutline } from '../utils/geometry'
 import { loadFromStorage } from '../utils/persistence'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import { GeolocationControl } from './GeolocationControl'
-import type { LatLng, Field, UserLocation } from '../types'
+import type { LatLng, Field, UserLocation, Champ } from '../types'
 
 // Module-level ref so other components can interact with the map programmatically.
 // Use getMap() to access it — don't read `globalMap` directly from other modules.
@@ -194,6 +194,7 @@ export function MapView() {
     if (persistedDataRestored) {
       useAppStore.setState({
         fields: [], fieldIdCounter: 0, selectedFieldId: null,
+        champs: [], champIdCounter: 0, selectedChampId: null,
         exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
       })
     }
@@ -250,9 +251,15 @@ export function MapView() {
         f.layer.setStyle({ weight: 2 })
       }
     })
+    store.champs.forEach((c) => {
+      if (c.layer) {
+        (c.layer as any).editing?.disable()
+        c.layer.setStyle({ weight: 3, dashArray: '10 6' })
+      }
+    })
 
     if (!editTarget) {
-      store.setStatus(store.fields.length > 0 ? 'EN ATTENTE' : store.exploitPolygon ? 'AJOUTEZ VOS CHAMPS' : 'EN ATTENTE')
+      store.setStatus(store.fields.length > 0 ? 'EN ATTENTE' : store.exploitPolygon ? 'AJOUTEZ VOS PARCELLES' : 'EN ATTENTE')
       return
     }
 
@@ -266,6 +273,13 @@ export function MapView() {
         (field.layer as any).editing?.enable()
         field.layer.setStyle({ weight: 4 })
         store.setStatus(`ÉDITION "${field.name.toUpperCase()}" — déplacez les sommets`)
+      }
+    } else if (editTarget.type === 'champ') {
+      const champ = store.champs.find((c) => c.id === editTarget.champId)
+      if (champ?.layer) {
+        (champ.layer as any).editing?.enable()
+        champ.layer.setStyle({ weight: 4, dashArray: '' })
+        store.setStatus(`ÉDITION CONTOUR "${champ.name.toUpperCase()}" — déplacez les sommets`)
       }
     }
   }, [editTarget])
@@ -371,7 +385,7 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
   const store = useAppStore.getState()
 
   const input = document.getElementById('field-name-input') as HTMLInputElement
-  const name = input?.value.trim() || `Champ ${store.fieldIdCounter + 1}`
+  const name = input?.value.trim() || `Parcelle ${store.fieldIdCounter + 1}`
 
   const rawLatLngs = layer.getLatLngs()[0] as L.LatLng[]
   const latlngs: LatLng[] = rawLatLngs.map((ll) => ({ lat: ll.lat, lng: ll.lng }))
@@ -380,8 +394,8 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
   if (store.exploitPolygon) {
     const outside = latlngs.filter((ll) => !isInsidePolygon(ll, store.exploitPolygon!))
     if (outside.length > 0) {
-      store.toast('⚠ Le champ doit être entièrement dans l\'exploitation !', true)
-      store.setStatus('CHAMP REJETÉ — hors exploitation')
+      store.toast('⚠ La parcelle doit être entièrement dans l\'exploitation !', true)
+      store.setStatus('PARCELLE REJETÉE — hors exploitation')
       return
     }
   }
@@ -425,7 +439,7 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
 
   store.addField(field)
   if (input) input.value = ''
-  store.setStatus(`CHAMP "${name.toUpperCase()}" AJOUTÉ`)
+  store.setStatus(`PARCELLE "${name.toUpperCase()}" AJOUTÉE`)
   store.toast(`✓ "${name}" ajouté — ${area.toFixed(2)} ha`)
 
   // Background auto-compute relief (altitude, slope, exposition, sunshine)
@@ -449,6 +463,49 @@ function createPointIcon(color: string, label: string) {
     popupAnchor: [0, -36],
     className: '',
   })
+}
+
+// ── Champ outline helpers ──
+
+/**
+ * Create or update the Leaflet layer for a champ on the map.
+ * Uses customOutline if set, otherwise auto-computes convex hull from parcelles.
+ */
+export function renderChampOnMap(champId: number) {
+  const map = globalMap
+  if (!map) return
+  const store = useAppStore.getState()
+  const champ = store.champs.find((c) => c.id === champId)
+  if (!champ) return
+
+  champ.layer?.remove()
+  champ.labelMarker?.remove()
+
+  const parcelles = store.fields.filter((f) => champ.parcelleIds.includes(f.id) && !f.archived)
+  if (parcelles.length === 0) {
+    store.setChampLayer(champId, undefined as unknown as L.Polygon, undefined as unknown as L.Marker)
+    return
+  }
+
+  const outline = champ.customOutline ?? computeChampOutline(parcelles.map((p) => p.latlngs))
+  if (outline.length < 3) return
+
+  const leafletLatLngs = outline.map((ll) => L.latLng(ll.lat, ll.lng))
+  const layer = L.polygon(leafletLatLngs, {
+    color: champ.color, weight: 3, fillColor: champ.color, fillOpacity: 0.04, dashArray: '10 6',
+  }).addTo(map)
+
+  layer.on('click', () => { useAppStore.getState().selectChamp(champId) })
+
+  const center = layer.getBounds().getCenter()
+  const labelMarker = L.marker(center, {
+    icon: L.divIcon({
+      html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px">${champ.name}</div>`,
+      iconSize: [0, 0], className: '',
+    }),
+  }).addTo(map)
+
+  store.setChampLayer(champId, layer, labelMarker)
 }
 
 // ── Restore persisted data ──
@@ -537,6 +594,7 @@ function restorePersistedData(map: L.Map) {
         archived: sf.archived,
         archivedAt: sf.archivedAt,
         archivedVisible: sf.archivedVisible,
+        champId: sf.champId,
         layer,
         labelMarker,
         pointMarkers,
@@ -548,6 +606,44 @@ function restorePersistedData(map: L.Map) {
     // Restore counter
     if (saved.fieldIdCounter) {
       useAppStore.setState({ fieldIdCounter: saved.fieldIdCounter })
+    }
+  }
+
+  // Restore champs
+  if (saved.champs && saved.champs.length > 0) {
+    saved.champs.forEach((sc) => {
+      const parcelles = (useAppStore.getState().fields).filter((f) => sc.parcelleIds.includes(f.id) && !f.archived)
+      const outline = sc.customOutline ?? (parcelles.length >= 1 ? computeChampOutline(parcelles.map((p) => p.latlngs)) : [])
+
+      let layer: L.Polygon | undefined
+      let labelMarker: L.Marker | undefined
+
+      if (outline.length >= 3) {
+        const leafletLatLngs = outline.map((ll) => L.latLng(ll.lat, ll.lng))
+        layer = L.polygon(leafletLatLngs, {
+          color: sc.color, weight: 3, fillColor: sc.color, fillOpacity: 0.04, dashArray: '10 6',
+        }).addTo(map)
+        layer.on('click', () => { useAppStore.getState().selectChamp(sc.id) })
+
+        const center = layer.getBounds().getCenter()
+        labelMarker = L.marker(center, {
+          icon: L.divIcon({
+            html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;color:${sc.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px">${sc.name}</div>`,
+            iconSize: [0, 0], className: '',
+          }),
+        }).addTo(map)
+      }
+
+      const champ: Champ = {
+        id: sc.id, name: sc.name, color: sc.color,
+        parcelleIds: sc.parcelleIds,
+        customOutline: sc.customOutline,
+        layer, labelMarker,
+      }
+      store.addChamp(champ)
+    })
+    if (saved.champIdCounter) {
+      useAppStore.setState({ champIdCounter: saved.champIdCounter })
     }
   }
 

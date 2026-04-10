@@ -14,6 +14,7 @@ function persist(state: AppState) {
 export const useAppStore = create<AppState>((set, get) => ({
   exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
   fields: [], fieldIdCounter: 0, selectedFieldId: null,
+  champs: [], champIdCounter: 0, selectedChampId: null,
   drawTarget: null, editTarget: null, addPointFieldId: null, generationMethod: 'grid', density: 1,
   userLocation: null, geolocationActive: false, geolocationError: null,
   employees: [], employeeIdCounter: 0, strains: [],
@@ -35,8 +36,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     persist(get())
   },
   clearExploitation: () => {
-    set({ exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null, fields: [], fieldIdCounter: 0, selectedFieldId: null, currentStep: 1 })
+    set({ exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null, fields: [], fieldIdCounter: 0, selectedFieldId: null, champs: [], champIdCounter: 0, selectedChampId: null, currentStep: 1 })
     persist(get())
+  },
+
+  // ── Champs ──
+  addChamp: (champ) => {
+    set((s) => ({ champs: [...s.champs, champ], champIdCounter: champ.id, selectedChampId: champ.id }))
+    persist(get())
+  },
+  removeChamp: (id) => {
+    set((s) => ({
+      champs: s.champs.filter((c) => c.id !== id),
+      fields: s.fields.map((f) => f.champId === id ? { ...f, champId: undefined } : f),
+      selectedChampId: s.selectedChampId === id ? null : s.selectedChampId,
+    }))
+    persist(get())
+  },
+  updateChamp: (id, updates) => {
+    set((s) => ({ champs: s.champs.map((c) => c.id === id ? { ...c, ...updates } : c) }))
+    persist(get())
+  },
+  selectChamp: (id) => set({ selectedChampId: id }),
+  addParcelleToChamp: (champId, fieldId) => {
+    set((s) => ({
+      champs: s.champs.map((c) => c.id === champId
+        ? { ...c, parcelleIds: c.parcelleIds.includes(fieldId) ? c.parcelleIds : [...c.parcelleIds, fieldId] }
+        : c),
+      fields: s.fields.map((f) => f.id === fieldId ? { ...f, champId } : f),
+    }))
+    persist(get())
+  },
+  removeParcelleFromChamp: (champId, fieldId) => {
+    set((s) => ({
+      champs: s.champs.map((c) => c.id === champId
+        ? { ...c, parcelleIds: c.parcelleIds.filter((pid) => pid !== fieldId) }
+        : c),
+      fields: s.fields.map((f) => f.id === fieldId && f.champId === champId ? { ...f, champId: undefined } : f),
+    }))
+    persist(get())
+  },
+  setChampCustomOutline: (champId, outline) => {
+    set((s) => ({ champs: s.champs.map((c) => c.id === champId ? { ...c, customOutline: outline } : c) }))
+    persist(get())
+  },
+  setChampLayer: (champId, layer, label) => {
+    set((s) => ({ champs: s.champs.map((c) => c.id === champId ? { ...c, layer, labelMarker: label } : c) }))
   },
 
   // ── Fields ──
@@ -247,6 +292,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       exploitPolygon: null, exploitArea: 0, exploitLayer: null, exploitLabel: null,
       fields: [], fieldIdCounter: 0, selectedFieldId: null,
+      champs: [], champIdCounter: 0, selectedChampId: null,
       drawTarget: null, currentStep: 1, statusText: 'EN ATTENTE',
       wateringLog: [], amendmentLog: [], soilAnalyses: [], agendaTasks: [], activities: [],
       activityIdCounter: 0,

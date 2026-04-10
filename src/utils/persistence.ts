@@ -1,4 +1,4 @@
-import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity } from '../types'
+import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity, Champ } from '../types'
 
 const STORAGE_KEY = 'anrac-prelevements-v2'
 
@@ -17,6 +17,15 @@ export interface PersistedField {
   archived?: boolean
   archivedAt?: string
   archivedVisible?: boolean
+  champId?: number
+}
+
+export interface PersistedChamp {
+  id: number
+  name: string
+  color: string
+  parcelleIds: number[]
+  customOutline?: LatLng[]
 }
 
 export interface PersistedData {
@@ -39,6 +48,8 @@ export interface PersistedData {
   agendaIdCounter?: number
   activities?: Activity[]
   activityIdCounter?: number
+  champs?: PersistedChamp[]
+  champIdCounter?: number
 }
 
 export function saveToStorage(data: PersistedData): void {
@@ -66,8 +77,11 @@ export function buildPersistedData(state: {
     archived?: boolean
     archivedAt?: string
     archivedVisible?: boolean
+    champId?: number
   }>
   fieldIdCounter: number
+  champs: Champ[]
+  champIdCounter: number
   generationMethod: string
   density: number
   employees: Employee[]
@@ -97,8 +111,15 @@ export function buildPersistedData(state: {
       archived: f.archived,
       archivedAt: f.archivedAt,
       archivedVisible: f.archivedVisible,
+      champId: f.champId,
     })),
     fieldIdCounter: state.fieldIdCounter,
+    champs: state.champs.map((c) => ({
+      id: c.id, name: c.name, color: c.color,
+      parcelleIds: c.parcelleIds,
+      customOutline: c.customOutline,
+    })),
+    champIdCounter: state.champIdCounter,
     generationMethod: state.generationMethod,
     density: state.density,
     employees: state.employees,
@@ -136,6 +157,8 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
   data.agendaIdCounter ??= 0
   data.activities ??= []
   data.activityIdCounter ??= 0
+  data.champs ??= []
+  data.champIdCounter ??= 0
   data.fieldIdCounter ??= data.fields?.length ?? 0
   data.generationMethod ??= 'grid'
   data.density ??= 1

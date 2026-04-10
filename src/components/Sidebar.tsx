@@ -129,9 +129,9 @@ export function Sidebar() {
       {/* Step 2: Fields */}
       {store.exploitPolygon && (
         <Section>
-          <SectionTitle>Ajouter un champ</SectionTitle>
+          <SectionTitle>Ajouter une parcelle</SectionTitle>
           <div className="flex gap-1.5 mb-1.5">
-            <input id="field-name-input" type="text" placeholder="Nom du champ"
+            <input id="field-name-input" type="text" placeholder="Nom de la parcelle"
               className="flex-1 font-mono text-xs bg-bg border border-border text-text py-1.5 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted" />
           </div>
           <button
@@ -141,11 +141,11 @@ export function Sidebar() {
               else {
                 const input = document.getElementById('field-name-input') as HTMLInputElement
                 if (!input.value.trim()) { store.toast('⚠ Saisissez un nom', true); input.focus(); return }
-                store.setDrawTarget('field'); store.setStatus('DESSIN CHAMP — cliquez les sommets')
+                store.setDrawTarget('field'); store.setStatus('DESSIN PARCELLE — cliquez les sommets')
               }
             }}
           >
-            {store.drawTarget === 'field' ? '■ Annuler' : '▭ Dessiner le champ'}
+            {store.drawTarget === 'field' ? '■ Annuler' : '▭ Dessiner la parcelle'}
           </button>
         </Section>
       )}
