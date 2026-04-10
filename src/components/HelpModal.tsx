@@ -16,7 +16,7 @@ export function HelpModal() {
       className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) setHelpOpen(false) }}
     >
-      <div className="bg-panel border border-border p-7 max-w-[680px] w-[92vw] max-h-[88vh] overflow-y-auto relative scrollbar-thin scrollbar-thumb-border">
+      <div className="bg-panel border border-border p-4 md:p-7 w-full h-full md:w-[92vw] md:max-w-[680px] md:h-auto md:max-h-[88vh] overflow-y-auto relative scrollbar-thin scrollbar-thumb-border">
         <button
           onClick={() => setHelpOpen(false)}
           className="absolute top-3 right-4 bg-transparent border-none text-muted text-xl cursor-pointer hover:text-red transition-colors"

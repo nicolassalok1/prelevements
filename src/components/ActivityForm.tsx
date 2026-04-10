@@ -155,7 +155,7 @@ export function ActivityForm() {
   return (
     <div className="fixed inset-0 bg-black/70 z-[10001] flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) close() }}>
-      <div className="bg-panel border border-border w-[92vw] max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <div className="bg-panel border border-border w-full h-full md:w-[92vw] md:max-w-[560px] md:h-auto md:max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
           <span className="font-mono text-sm text-olive-lit tracking-[2px] uppercase flex-1">
             {editId != null ? '✎ Modifier l\'activité' : '+ Nouvelle activité'}

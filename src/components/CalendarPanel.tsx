@@ -69,14 +69,14 @@ export function CalendarPanel() {
   return (
     <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
-      <div className="bg-panel border border-border w-[92vw] max-w-[720px] h-[85vh] flex flex-col">
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
-          <span className="font-mono text-sm text-olive-lit tracking-[2px] uppercase flex-1">◰ Agenda — Calendrier</span>
+      <div className="bg-panel border border-border w-full h-full md:w-[92vw] md:max-w-[720px] md:h-[85vh] flex flex-col">
+        <div className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-3 border-b border-border">
+          <span className="font-mono text-xs md:text-sm text-olive-lit tracking-[2px] uppercase flex-1 truncate">◰ Agenda</span>
           <button onClick={() => openActivityForm({ date: selectedDay || todayISO() })} className="btn-active text-[10px]">+ Activité</button>
-          <button onClick={() => setOpen(false)} className="text-muted hover:text-red bg-transparent border-none text-lg cursor-pointer">✕</button>
+          <button onClick={() => setOpen(false)} className="text-muted hover:text-red bg-transparent border-none text-lg cursor-pointer w-9 h-9 flex items-center justify-center">✕</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-3 md:p-5">
           {/* Month nav */}
           <div className="flex items-center justify-between mb-2 gap-2">
             <button onClick={() => setCursor(new Date(year, month - 1, 1))}

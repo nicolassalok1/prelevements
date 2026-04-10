@@ -184,3 +184,23 @@ body {
 .btn-amber:hover { background: var(--color-amber); color: #000; }
 .btn-cyan { border-color: var(--color-cyan); color: var(--color-cyan); }
 .btn-cyan:hover { background: var(--color-cyan); color: #000; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 767px) {
+  .btn-base, .btn-full, .btn-sm, .btn-active, .btn-danger, .btn-amber, .btn-cyan {
+    padding: 8px 14px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+  .btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+  .leaflet-control-zoom a {
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 18px !important;
+  }
+}

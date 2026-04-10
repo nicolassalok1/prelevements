@@ -24,27 +24,35 @@ export function Dashboard() {
   return (
     <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
-      <div className="bg-panel border border-border w-[92vw] max-w-[900px] h-[85vh] flex relative">
-        {/* Sidebar nav */}
-        <nav className="w-[180px] border-r border-border flex flex-col bg-bg shrink-0">
-          <div className="px-4 py-4 border-b border-border">
+      <div className="bg-panel border border-border w-full h-full md:w-[92vw] md:max-w-[900px] md:h-[85vh] flex flex-col md:flex-row relative">
+        {/* Nav — horizontal tabs on mobile, vertical sidebar on desktop */}
+        <nav className="flex md:flex-col md:w-[180px] border-b md:border-b-0 md:border-r border-border bg-bg shrink-0 overflow-x-auto md:overflow-x-visible">
+          <div className="hidden md:block px-4 py-4 border-b border-border">
             <div className="font-mono text-[10px] text-olive-lit tracking-[2px]">DASHBOARD</div>
             <div className="font-mono text-[9px] text-muted mt-1">v2.0</div>
           </div>
           {NAV_ITEMS.map((item) => (
             <button key={item.key} onClick={() => setTab(item.key)}
-              className={`text-left px-4 py-2.5 text-xs font-semibold tracking-[.5px] border-l-2 transition-all cursor-pointer bg-transparent border-y-0 border-r-0
-                ${tab === item.key ? 'border-l-olive-lit text-olive-lit bg-olive/10' : 'border-l-transparent text-muted hover:text-text hover:bg-panel'}`}>
-              <span className="mr-2 opacity-60">{item.icon}</span>{item.label}
+              className={`text-left px-3 md:px-4 py-2 md:py-2.5 text-[11px] md:text-xs font-semibold tracking-[.5px] whitespace-nowrap border-b-2 md:border-b-0 md:border-l-2 transition-all cursor-pointer bg-transparent border-t-0 border-r-0 md:border-y-0
+                ${tab === item.key ? 'border-b-olive-lit md:border-b-transparent md:border-l-olive-lit text-olive-lit bg-olive/10' : 'border-b-transparent md:border-l-transparent text-muted hover:text-text hover:bg-panel'}`}>
+              <span className="mr-1.5 md:mr-2 opacity-60">{item.icon}</span>{item.label}
             </button>
           ))}
-          <div className="mt-auto p-3 border-t border-border">
+          <div className="hidden md:block mt-auto p-3 border-t border-border">
             <button onClick={() => setOpen(false)} className="btn-danger w-full text-[10px] py-1.5">Fermer</button>
           </div>
         </nav>
 
+        {/* Mobile close button */}
+        <button
+          onClick={() => setOpen(false)}
+          className="md:hidden absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center text-[var(--color-muted)] border border-[var(--color-border)] bg-[var(--color-panel)] text-lg"
+        >
+          ✕
+        </button>
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {tab === 'overview' && <OverviewTab />}
           {tab === 'cultures' && <CulturesTab />}
           {tab === 'agenda' && <AgendaTab />}

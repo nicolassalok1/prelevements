@@ -9,6 +9,7 @@ export function RightPanel() {
   const setDashboardOpen = useAppStore((s) => s.setDashboardOpen)
   const setCalendarOpen = useAppStore((s) => s.setCalendarOpen)
   const [allPointsVisible, setAllPointsVisible] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const totalPoints = fields.reduce((s, f) => s + f.points.length, 0)
 
@@ -23,51 +24,84 @@ export function RightPanel() {
     })
   }
 
+  const panelHeader = (
+    <div className="px-3 py-2.5 border-t border-b border-border flex items-center gap-2 shrink-0">
+      <div className="font-mono text-[10px] text-olive-lit tracking-[2px] flex-1 flex items-center gap-1.5 before:content-[''] before:w-3 before:h-px before:bg-olive-lit uppercase">
+        Champs & points
+      </div>
+      {totalPoints > 0 && (
+        <button
+          onClick={toggleAllPoints}
+          className={`font-mono text-[10px] px-2 py-1 border cursor-pointer transition-all
+            ${allPointsVisible
+              ? 'text-amber bg-amber/10 border-amber/25 hover:bg-amber/20'
+              : 'text-muted bg-transparent border-border hover:border-muted'}`}
+        >
+          {allPointsVisible ? '◉ Masquer pts' : '○ Afficher pts'}
+        </button>
+      )}
+    </div>
+  )
+
+  const quickButtons = (mobile = false) => (
+    <div className={`${mobile ? 'mx-3 mb-2' : 'm-3 mb-0'} flex gap-2 shrink-0`}>
+      <button
+        onClick={() => { setDashboardOpen(true); if (mobile) setMobileOpen(false) }}
+        className={`flex-1 ${mobile ? 'py-3' : 'py-2'} bg-amber/10 border border-amber text-amber font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-amber hover:text-black transition-all flex items-center justify-center gap-1.5`}
+      >
+        <span className="text-sm">◈</span> Dashboard
+      </button>
+      <button
+        onClick={() => { setCalendarOpen(true); if (mobile) setMobileOpen(false) }}
+        className={`flex-1 ${mobile ? 'py-3' : 'py-2'} bg-cyan/10 border border-cyan text-cyan font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-cyan hover:text-black transition-all flex items-center justify-center gap-1.5`}
+      >
+        <span className="text-sm">◰</span> Agenda
+      </button>
+    </div>
+  )
+
   return (
-    <aside className="bg-panel border-l border-border flex flex-col overflow-hidden">
-      {/* Dashboard + Agenda quick access */}
-      <div className="m-3 mb-0 flex gap-2 shrink-0">
-        <button
-          onClick={() => setDashboardOpen(true)}
-          className="flex-1 py-2 bg-amber/10 border border-amber text-amber font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-amber hover:text-black transition-all flex items-center justify-center gap-1.5"
-          title="Ouvrir le tableau de bord"
-        >
-          <span className="text-sm">◈</span> Dashboard
-        </button>
-        <button
-          onClick={() => setCalendarOpen(true)}
-          className="flex-1 py-2 bg-cyan/10 border border-cyan text-cyan font-semibold text-[11px] tracking-[1.5px] uppercase cursor-pointer hover:bg-cyan hover:text-black transition-all flex items-center justify-center gap-1.5"
-          title="Ouvrir le calendrier des activités"
-        >
-          <span className="text-sm">◰</span> Agenda
-        </button>
-      </div>
+    <>
+      {/* ── Mobile: FAB + bottom sheet ── */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed bottom-4 right-4 z-[800] bg-[var(--color-olive)] text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+      >
+        <span className="text-[11px] font-mono leading-none text-center">
+          {fields.length}<br />
+          <span className="text-[8px] opacity-80">zones</span>
+        </span>
+      </button>
 
-      {/* Header */}
-      <div className="px-3 py-2.5 mt-3 border-t border-b border-border flex items-center gap-2">
-        <div className="font-mono text-[10px] text-olive-lit tracking-[2px] flex-1 flex items-center gap-1.5 before:content-[''] before:w-3 before:h-px before:bg-olive-lit uppercase">
-          Champs & points
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-[850]"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[851] bg-[var(--color-panel)] border-t border-[var(--color-border)] rounded-t-2xl shadow-2xl transition-transform duration-300 ease-out max-h-[75vh] flex flex-col ${
+        mobileOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}>
+        <div className="flex justify-center py-2 shrink-0" onClick={() => setMobileOpen(false)}>
+          <div className="w-10 h-1 rounded-full bg-[var(--color-border)]" />
         </div>
-        {totalPoints > 0 && (
-          <button
-            onClick={toggleAllPoints}
-            className={`font-mono text-[10px] px-2 py-0.5 border cursor-pointer transition-all
-              ${allPointsVisible
-                ? 'text-amber bg-amber/10 border-amber/25 hover:bg-amber/20'
-                : 'text-muted bg-transparent border-border hover:border-muted'}`}
-            title={allPointsVisible ? 'Masquer tous les points' : 'Afficher tous les points'}
-          >
-            {allPointsVisible ? '◉ Masquer pts' : '○ Afficher pts'}
-          </button>
-        )}
+        {quickButtons(true)}
+        {panelHeader}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <FieldList />
+        </div>
+        <ArchivesSection />
       </div>
 
-      {/* Field list */}
-      <FieldList />
-
-      {/* Archives */}
-      <ArchivesSection />
-    </aside>
+      {/* ── Desktop: classic sidebar ── */}
+      <aside className="hidden md:flex bg-panel border-l border-border flex-col overflow-hidden">
+        {quickButtons(false)}
+        <div className="mt-3">{panelHeader}</div>
+        <FieldList />
+        <ArchivesSection />
+      </aside>
+    </>
   )
 }
 
