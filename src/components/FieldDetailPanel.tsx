@@ -90,9 +90,34 @@ function Empty({ text }: { text: string }) {
 function InfoTab() {
   const field = useField()
   const updateField = useAppStore((s) => s.updateField)
+  const openActivityForm = useAppStore((s) => s.openActivityForm)
+  const closeFieldDetail = useAppStore((s) => s.closeFieldDetail)
   const toast = useAppStore((s) => s.toast)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(field.name)
+  const [notes, setNotes] = useState(field.notes || '')
+  const [notesDirty, setNotesDirty] = useState(false)
+
+  // Keep local notes draft in sync when switching between fields
+  useEffect(() => {
+    setNotes(field.notes || '')
+    setNotesDirty(false)
+  }, [field.id])
+
+  const saveNotes = () => {
+    const trimmed = notes.trim()
+    updateField(field.id, { notes: trimmed || undefined })
+    setNotesDirty(false)
+    toast('✓ Notes enregistrées')
+  }
+
+  const handleCreateActivity = () => {
+    closeFieldDetail()
+    openActivityForm({
+      date: new Date().toISOString().slice(0, 10),
+      presetFieldId: field.id,
+    })
+  }
 
   const handleRename = () => {
     if (!name.trim()) { setName(field.name); setEditing(false); return }
@@ -145,6 +170,35 @@ function InfoTab() {
         <StatCard label="Points" value={`${field.points.length}`} />
         <StatCard label="Culture" value={field.culture ? (field.culture.seedType === 'beldia' ? 'Beldia' : `Cali — ${field.culture.strain || '?'}`) : '—'} />
       </div>
+
+      {/* Notes */}
+      <div>
+        <Label>Notes de la parcelle</Label>
+        <textarea
+          value={notes}
+          onChange={(e) => { setNotes(e.target.value); setNotesDirty(true) }}
+          disabled={!!field.archived}
+          placeholder="Observations, état, remarques…"
+          rows={4}
+          className="w-full font-mono text-xs bg-bg border border-border text-text py-2 px-2.5 outline-none focus:border-olive-lit placeholder:text-muted resize-y disabled:opacity-60"
+        />
+        {notesDirty && !field.archived && (
+          <div className="flex gap-2 mt-1.5">
+            <button className="btn-sm btn-active flex-1" onClick={saveNotes}>✓ Enregistrer les notes</button>
+            <button className="btn-sm btn-danger" onClick={() => { setNotes(field.notes || ''); setNotesDirty(false) }}>Annuler</button>
+          </div>
+        )}
+      </div>
+
+      {/* Quick create activity */}
+      {!field.archived && (
+        <button
+          onClick={handleCreateActivity}
+          className="btn-cyan w-full text-[11px] py-2"
+          title="Créer une nouvelle activité pour cette parcelle">
+          + Créer une activité sur cette parcelle
+        </button>
+      )}
 
       {/* Summary */}
       <div className="border border-border p-3">

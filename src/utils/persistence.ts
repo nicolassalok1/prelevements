@@ -14,6 +14,7 @@ export interface PersistedField {
   assignedEmployees: number[]
   assignedManager: number | null
   relief?: ReliefInfo
+  notes?: string
   archived?: boolean
   archivedAt?: string
   archivedVisible?: boolean
@@ -74,6 +75,7 @@ export function buildPersistedData(state: {
     assignedEmployees: number[]
     assignedManager: number | null
     relief?: ReliefInfo
+    notes?: string
     archived?: boolean
     archivedAt?: string
     archivedVisible?: boolean
@@ -108,6 +110,7 @@ export function buildPersistedData(state: {
       assignedEmployees: f.assignedEmployees,
       assignedManager: f.assignedManager,
       relief: f.relief,
+      notes: f.notes,
       archived: f.archived,
       archivedAt: f.archivedAt,
       archivedVisible: f.archivedVisible,
