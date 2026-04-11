@@ -87,6 +87,22 @@ export function MapView() {
   const editTarget = useAppStore((s) => s.editTarget)
   const addPointFieldId = useAppStore((s) => s.addPointFieldId)
   const userLocation = useAppStore((s) => s.userLocation)
+  const exploitContourHidden = useAppStore((s) => s.exploitContourHidden)
+
+  // Show/hide the exploitation outline on the map when the toggle changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const { exploitLayer, exploitLabel } = useAppStore.getState()
+    if (!exploitLayer) return
+    if (exploitContourHidden) {
+      exploitLayer.remove()
+      exploitLabel?.remove()
+    } else {
+      if (!map.hasLayer(exploitLayer)) exploitLayer.addTo(map)
+      if (exploitLabel && !map.hasLayer(exploitLabel)) exploitLabel.addTo(map)
+    }
+  }, [exploitContourHidden])
 
   // User location layer refs
   const userMarkerRef = useRef<L.Marker | null>(null)
@@ -603,6 +619,7 @@ function restorePersistedData(map: L.Map) {
         assignedEmployees: sf.assignedEmployees || [],
         assignedManager: sf.assignedManager ?? null,
         relief: sf.relief,
+        notes: sf.notes,
         archived: sf.archived,
         archivedAt: sf.archivedAt,
         archivedVisible: sf.archivedVisible,

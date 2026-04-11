@@ -171,6 +171,7 @@ export interface Field {
   assignedEmployees: number[]
   assignedManager: number | null
   relief?: ReliefInfo
+  notes?: string              // notes libres sur la parcelle
   archived?: boolean
   archivedAt?: string
   champId?: number            // ID du champ parent (undefined = parcelle libre)
@@ -198,7 +199,7 @@ export type DrawTarget = 'exploit' | 'field' | null
 export type EditTarget = { type: 'exploit' } | { type: 'field'; fieldId: number } | { type: 'champ'; champId: number } | null
 export type GenerationMethod = 'grid' | 'zigzag' | 'random'
 
-export type DashboardTab = 'overview' | 'cultures' | 'agenda' | 'watering' | 'amendments' | 'soil' | 'relief'
+export type DashboardTab = 'overview' | 'cultures' | 'agenda' | 'expenses' | 'watering' | 'amendments' | 'soil' | 'relief'
 export type FieldDetailTab = 'info' | 'culture' | 'watering' | 'amendments' | 'other' | 'soil' | 'relief'
 
 export interface AppState {
@@ -207,6 +208,7 @@ export interface AppState {
   exploitArea: number
   exploitLayer: L.Polygon | null
   exploitLabel: L.Marker | null
+  exploitContourHidden: boolean   // runtime UI toggle: hide the exploitation outline
 
   // Fields (parcelles)
   fields: Field[]
@@ -275,6 +277,7 @@ export interface AppState {
   // Exploitation
   setExploitation: (polygon: LatLng[], area: number, layer: L.Polygon, label: L.Marker) => void
   clearExploitation: () => void
+  setExploitContourHidden: (hidden: boolean) => void
 
   // Champs
   addChamp: (champ: Champ) => void
@@ -290,7 +293,7 @@ export interface AppState {
   addField: (field: Field) => void
   removeField: (id: number) => void
   selectField: (id: number | null) => void
-  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'culture' | 'relief'>>) => void
+  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'culture' | 'relief' | 'notes'>>) => void
   setFieldPoints: (fieldId: number, points: SamplingPoint[], markers: L.Marker[]) => void
   removePoint: (fieldId: number, pointIndex: number) => void
   archiveField: (id: number, reassignments?: { activityId: number; targetFieldIds: number[] }[]) => void

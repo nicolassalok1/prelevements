@@ -122,6 +122,15 @@ export function Sidebar() {
               )}
               {!store.editTarget && <button className="btn-sm btn-danger" onClick={handleClearAll}>Redessiner</button>}
             </div>
+            {!store.editTarget && (
+              <button
+                className="btn-sm btn-active w-full mt-1.5"
+                onClick={() => store.setExploitContourHidden(!store.exploitContourHidden)}
+                title="Masquer ou afficher le contour de l'exploitation sur la carte"
+              >
+                {store.exploitContourHidden ? '◉ Afficher le contour' : '◎ Masquer le contour'}
+              </button>
+            )}
           </div>
         )}
       </Section>

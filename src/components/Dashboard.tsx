@@ -7,6 +7,7 @@ const NAV_ITEMS: { key: DashboardTab; icon: string; label: string }[] = [
   { key: 'overview', icon: '◈', label: 'Vue d\'ensemble' },
   { key: 'cultures', icon: '❋', label: 'Cultures' },
   { key: 'agenda', icon: '◰', label: 'Agenda' },
+  { key: 'expenses', icon: '◉', label: 'Dépenses' },
   { key: 'watering', icon: '◇', label: 'Arrosage' },
   { key: 'amendments', icon: '▣', label: 'Amendements' },
   { key: 'soil', icon: '◬', label: 'Analyse sols' },
@@ -48,6 +49,7 @@ export function Dashboard() {
           {tab === 'overview' && <OverviewTab />}
           {tab === 'cultures' && <CulturesTab />}
           {tab === 'agenda' && <AgendaTab />}
+          {tab === 'expenses' && <ExpensesTab />}
           {tab === 'watering' && <WateringTab />}
           {tab === 'amendments' && <AmendmentsTab />}
           {tab === 'soil' && <SoilTab />}
@@ -287,6 +289,87 @@ function AgendaTab() {
   )
 }
 
+
+// ═══════════════════════════════════════
+//  DÉPENSES
+// ═══════════════════════════════════════
+
+function ExpensesTab() {
+  const store = useAppStore()
+  const expenses = store.activities.filter((a) => a.type === 'expense')
+  const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
+
+  // Group by category (libre → 'Sans catégorie')
+  const groups = new Map<string, typeof expenses>()
+  for (const e of expenses) {
+    const key = e.expense?.category?.trim() || 'Sans catégorie'
+    const arr = groups.get(key) || []
+    arr.push(e)
+    groups.set(key, arr)
+  }
+  const sortedGroups = Array.from(groups.entries())
+    .map(([cat, items]) => ({
+      cat,
+      items: [...items].sort((a, b) => b.date.localeCompare(a.date)),
+      total: items.reduce((s, it) => s + (it.expense?.amount ?? 0), 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+
+  const grandTotal = expenses.reduce((s, e) => s + (e.expense?.amount ?? 0), 0)
+
+  return (
+    <>
+      <TabHeader title="Historique des dépenses" subtitle="Regroupées par type — montant total et détail" />
+
+      <div className="bg-bg border border-border p-4 mb-5 flex items-center justify-between">
+        <div>
+          <div className="font-mono text-[10px] text-muted uppercase tracking-[1px]">Total général</div>
+          <div className="font-mono text-2xl text-red font-bold mt-1">{fmt(grandTotal)} DH</div>
+        </div>
+        <div className="text-right">
+          <div className="font-mono text-[10px] text-muted uppercase tracking-[1px]">Entrées</div>
+          <div className="font-mono text-xl text-olive-lit mt-1">{expenses.length}</div>
+        </div>
+      </div>
+
+      {sortedGroups.length === 0 ? (
+        <EmptyState text="Aucune dépense enregistrée." />
+      ) : (
+        <div className="space-y-5">
+          {sortedGroups.map(({ cat, items, total }) => {
+            const pct = grandTotal > 0 ? (total / grandTotal) * 100 : 0
+            return (
+              <div key={cat} className="border border-border">
+                <div className="bg-bg px-3 py-2 border-b border-border flex items-center gap-3">
+                  <span className="font-mono text-xs text-olive-lit font-bold flex-1 truncate">{cat}</span>
+                  <span className="font-mono text-[10px] text-muted">{items.length} entrée{items.length > 1 ? 's' : ''}</span>
+                  <span className="font-mono text-xs text-red font-bold">{fmt(total)} DH</span>
+                  <span className="font-mono text-[10px] text-muted w-12 text-right">{pct.toFixed(0)}%</span>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {items.map((a) => {
+                    const fieldNames = a.fieldIds.map((id) => store.fields.find((f) => f.id === id)?.name).filter(Boolean).join(', ')
+                    return (
+                      <div key={a.id} className="px-3 py-2 flex items-center gap-3 hover:bg-olive/5 transition-colors">
+                        <span className="font-mono text-[10px] text-muted min-w-[72px]">{a.date}</span>
+                        <span className="font-mono text-xs text-text flex-1 truncate">
+                          {a.notes || (fieldNames ? `(${fieldNames})` : '—')}
+                        </span>
+                        <span className="font-mono text-xs text-red font-bold">{fmt(a.expense?.amount ?? 0)} DH</span>
+                        <button onClick={() => { store.setDashboardOpen(false); store.openActivityForm({ date: a.date, editId: a.id }) }}
+                          className="text-muted hover:text-olive-lit bg-transparent border-none cursor-pointer text-[11px]" title="Modifier">✎</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
 
 // ═══════════════════════════════════════
 //  ARROSAGE
