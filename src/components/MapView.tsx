@@ -530,45 +530,6 @@ function createPointIcon(color: string, label: string) {
  * Create or update the Leaflet layer for a champ on the map.
  * Uses customOutline if set, otherwise auto-computes convex hull from parcelles.
  */
-/**
- * Shift a hex color's hue slightly for visual differentiation.
- * `offset` is a small number (e.g. 0, 1, 2…) that produces a unique tint.
- */
-function shiftColor(hex: string, offset: number): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  // Convert to HSL
-  const rn = r / 255, gn = g / 255, bn = b / 255
-  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
-  let h = 0, s = 0
-  const l = (max + min) / 2
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
-    else if (max === gn) h = ((bn - rn) / d + 2) / 6
-    else h = ((rn - gn) / d + 4) / 6
-  }
-  // Shift hue and lightness slightly per offset
-  const newH = (h + offset * 0.06) % 1
-  const newL = Math.max(0.25, Math.min(0.75, l + (offset % 2 === 0 ? 0.05 : -0.05) * (offset > 0 ? 1 : 0)))
-  // HSL → RGB
-  const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1
-    if (t < 1 / 6) return p + (q - p) * 6 * t
-    if (t < 1 / 2) return q
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-    return p
-  }
-  const q2 = newL < 0.5 ? newL * (1 + s) : newL + s - newL * s
-  const p2 = 2 * newL - q2
-  const r2 = Math.round(hue2rgb(p2, q2, newH + 1 / 3) * 255)
-  const g2 = Math.round(hue2rgb(p2, q2, newH) * 255)
-  const b2 = Math.round(hue2rgb(p2, q2, newH - 1 / 3) * 255)
-  return `#${r2.toString(16).padStart(2, '0')}${g2.toString(16).padStart(2, '0')}${b2.toString(16).padStart(2, '0')}`
-}
-
 export function renderChampOnMap(champId: number) {
   const map = globalMap
   if (!map) return
