@@ -1,5 +1,7 @@
 import turfUnion from '@turf/union'
+import turfBuffer from '@turf/buffer'
 import { polygon as turfPolygon, multiPolygon as turfMultiPolygon } from '@turf/helpers'
+import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import type { LatLng } from '../types'
 
 export function isInsidePolygon(point: LatLng, polygon: LatLng[]): boolean {
@@ -101,6 +103,7 @@ export function computeChampOutlineMulti(parcellePolygons: LatLng[][]): LatLng[]
   if (parcellePolygons.length === 1) return [[...parcellePolygons[0]]]
 
   try {
+    // Build closed GeoJSON rings from each parcelle
     const turfPolys = parcellePolygons.map((poly) => {
       const ring = poly.map((p) => [p.lng, p.lat] as [number, number])
       if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
@@ -109,20 +112,31 @@ export function computeChampOutlineMulti(parcellePolygons: LatLng[][]): LatLng[]
       return turfPolygon([ring])
     })
 
-    let merged = turfPolys[0]
-    for (let i = 1; i < turfPolys.length; i++) {
-      const result = turfUnion(merged, turfPolys[i])
+    // Slightly buffer each parcelle (~2m) so hand-drawn gaps between
+    // adjacent parcelles are closed, then union merges them properly.
+    const buffered = turfPolys.map((p) => {
+      const b = turfBuffer(p, 0.002, { units: 'kilometers' })
+      return b ?? p
+    }) as Feature<Polygon | MultiPolygon>[]
+
+    let merged: Feature<Polygon | MultiPolygon> = buffered[0]
+    for (let i = 1; i < buffered.length; i++) {
+      const result = turfUnion(merged, buffered[i])
       if (result) merged = result
     }
 
+    // Shrink back by the same amount to restore the original scale
+    const shrunk = turfBuffer(merged, -0.002, { units: 'kilometers' })
+    if (shrunk) merged = shrunk as Feature<Polygon | MultiPolygon>
+
     // Extract all outer rings (handles both Polygon and MultiPolygon)
     const allRings: number[][][] = merged.geometry.type === 'MultiPolygon'
-      ? merged.geometry.coordinates.map((poly: number[][][]) => poly[0])
+      ? merged.geometry.coordinates.map((poly) => poly[0])
       : [merged.geometry.coordinates[0]]
 
     const outlines: LatLng[][] = allRings
-      .map((ring: number[][]) => ring.slice(0, -1).map(([lng, lat]: number[]) => ({ lat, lng })))
-      .filter((o: LatLng[]) => o.length >= 3)
+      .map((ring) => ring.slice(0, -1).map(([lng, lat]) => ({ lat, lng })))
+      .filter((o) => o.length >= 3)
 
     return outlines.length > 0 ? outlines : [computeConvexHull(parcellePolygons.flat())]
   } catch {
