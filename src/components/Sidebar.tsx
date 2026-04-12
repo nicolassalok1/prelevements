@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { clearStorage } from '../utils/persistence'
 import { StepIndicator } from './StepIndicator'
 import { exportProject, parseProjectFile } from '../utils/exporters'
-import { saveToStorage, buildPersistedData } from '../utils/persistence'
+import { saveToCloud, buildPersistedData } from '../utils/persistence'
 import { calcArea } from '../utils/geometry'
 import { cacheTilesForBounds, estimateTileCount } from '../utils/offline'
 import type { LatLng } from '../types'
@@ -43,9 +43,9 @@ export function Sidebar() {
       reader.onload = () => {
         const data = parseProjectFile(reader.result as string)
         if (!data) { store.toast('⚠ Fichier invalide', true); return }
-        // Write the uploaded snapshot to localStorage and reload.
+        // Write the uploaded snapshot to localStorage + cloud, then reload.
         // The reload handles layer teardown and full re-hydration from the new data.
-        saveToStorage(data)
+        saveToCloud(data)
         window.location.reload()
       }
       reader.onerror = () => store.toast('⚠ Impossible de lire le fichier', true)
