@@ -141,6 +141,32 @@ export function MapView() {
       maxNativeZoom: 22,
     }).addTo(map)
 
+    // ── Compass rose (north indicator) ──
+    const CompassControl = L.Control.extend({
+      options: { position: 'topright' as L.ControlPosition },
+      onAdd() {
+        const container = L.DomUtil.create('div', 'leaflet-compass-rose')
+        container.innerHTML = `<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="cs" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.5"/>
+            </filter>
+          </defs>
+          <g filter="url(#cs)">
+            <polygon points="24,4 28,20 24,17 20,20" fill="#e74c3c"/>
+            <polygon points="24,44 20,28 24,31 28,28" fill="#ccc"/>
+            <polygon points="4,24 20,20 17,24 20,28" fill="#aaa"/>
+            <polygon points="44,24 28,28 31,24 28,20" fill="#aaa"/>
+            <circle cx="24" cy="24" r="3" fill="#fff" stroke="#333" stroke-width="1"/>
+            <text x="24" y="15" text-anchor="middle" fill="#fff" font-size="9" font-weight="bold" font-family="monospace" stroke="#000" stroke-width="2" paint-order="stroke">N</text>
+          </g>
+        </svg>`
+        container.style.cssText = 'pointer-events:none;opacity:0.85;'
+        return container
+      },
+    })
+    new CompassControl().addTo(map)
+
     const drawnItems = new L.FeatureGroup().addTo(map)
     drawnRef.current = drawnItems
 

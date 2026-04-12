@@ -120,7 +120,6 @@ export function Sidebar() {
                   store.setEditTarget(null)
                 }}>Annuler</button>
               )}
-              {!store.editTarget && <button className="btn-sm btn-danger" onClick={handleClearAll}>Redessiner</button>}
             </div>
             {!store.editTarget && (
               <button
