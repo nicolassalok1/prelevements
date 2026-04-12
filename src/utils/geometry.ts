@@ -1,5 +1,4 @@
 import turfUnion from '@turf/union'
-import turfBuffer from '@turf/buffer'
 import { polygon as turfPolygon } from '@turf/helpers'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import type { LatLng } from '../types'
@@ -112,24 +111,15 @@ export function computeChampOutlineMulti(parcellePolygons: LatLng[][]): LatLng[]
       return turfPolygon([ring])
     })
 
-    // Slightly buffer each parcelle (~2m) so hand-drawn gaps between
-    // adjacent parcelles are closed, then union merges them properly.
-    const buffered = turfPolys.map((p) => {
-      const b = turfBuffer(p, 0.002, { units: 'kilometers' })
-      return b ?? p
-    }) as Feature<Polygon | MultiPolygon>[]
-
-    let merged: Feature<Polygon | MultiPolygon> = buffered[0]
-    for (let i = 1; i < buffered.length; i++) {
+    // Union all parcelle polygons directly — the outline follows
+    // each parcelle's exact border. Disjoint parcelles stay as
+    // separate parts in a MultiPolygon.
+    let merged: Feature<Polygon | MultiPolygon> = turfPolys[0]
+    for (let i = 1; i < turfPolys.length; i++) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = (turfUnion as any)(merged, buffered[i])
+      const result = (turfUnion as any)(merged, turfPolys[i])
       if (result) merged = result
     }
-
-    // Shrink back by the same amount to restore the original scale
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const shrunk = turfBuffer(merged as any, -0.002, { units: 'kilometers' })
-    if (shrunk) merged = shrunk as unknown as Feature<Polygon | MultiPolygon>
 
     // Extract all outer rings (handles both Polygon and MultiPolygon)
     const allRings: number[][][] = merged.geometry.type === 'MultiPolygon'

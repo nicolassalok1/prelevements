@@ -12,7 +12,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "@tailwindcss/vite": "^4.2.2",
-    "@turf/buffer": "^7.3.4",
     "@turf/helpers": "^7.3.4",
     "@turf/union": "^7.3.4",
     "@types/leaflet": "^1.9.21",
