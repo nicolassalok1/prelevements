@@ -131,6 +131,9 @@ export function MapView() {
       zoom: 17,
       maxZoom: 22,
       zoomControl: true,
+      zoomDelta: 0.2,
+      zoomSnap: 0.2,
+      wheelPxPerZoomLevel: 120,
     })
 
     // ── Single base layer: Google Satellite ──
