@@ -685,6 +685,9 @@ async function restorePersistedData(map: L.Map, userId?: string) {
         archivedAt: sf.archivedAt,
         archivedVisible: sf.archivedVisible,
         champId: sf.champId,
+        batches: (sf as any).batches,
+        plaques: (sf as any).plaques,
+        climateMeasures: (sf as any).climateMeasures,
         layer,
         labelMarker,
         pointMarkers,
@@ -720,7 +723,7 @@ async function restorePersistedData(map: L.Map, userId?: string) {
     })
   }
 
-  // Restore employees, strains, logs
+  // Restore employees, strains, logs, agenda, activities
   useAppStore.setState({
     employees: saved.employees || [],
     employeeIdCounter: saved.employeeIdCounter || 0,
@@ -731,6 +734,10 @@ async function restorePersistedData(map: L.Map, userId?: string) {
     amendmentIdCounter: saved.amendmentIdCounter || 0,
     soilAnalyses: saved.soilAnalyses || [],
     soilAnalysisIdCounter: saved.soilAnalysisIdCounter || 0,
+    agendaTasks: saved.agendaTasks || [],
+    agendaIdCounter: saved.agendaIdCounter || 0,
+    activities: saved.activities || [],
+    activityIdCounter: saved.activityIdCounter || 0,
   })
 
   store.setStatus(saved.exploitPolygon ? (saved.fields.length > 0 ? 'DONNÉES RESTAURÉES' : 'AJOUTEZ VOS CHAMPS') : 'EN ATTENTE')

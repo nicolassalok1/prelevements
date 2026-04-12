@@ -266,7 +266,11 @@ function DeleteAccountSection() {
     try {
       const { supabase } = await import('../lib/supabase')
       if (supabase) {
-        await supabase.from('user_data').delete().eq('user_id', user.id)
+        const { data: { session } } = await supabase.auth.getSession()
+        const { error } = await supabase.functions.invoke('delete-user', {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        })
+        if (error) throw error
       }
       clearStorage()
       useAppStore.getState().clearAll()
