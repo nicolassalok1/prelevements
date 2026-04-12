@@ -854,6 +854,8 @@ function BatchesTab() {
 
   // Plaque add for existing batch
   const [addingPlaqueFor, setAddingPlaqueFor] = useState<number | null>(null)
+  const [apName, setApName] = useState('')
+  const [apPreset, setApPreset] = useState(2)
 
   const nextBatchId = batches.reduce((m, b) => Math.max(m, b.id), 0) + 1
   const nextPlaqueId = plaques.reduce((m, p) => Math.max(m, p.id), 0) + 1
@@ -896,7 +898,7 @@ function BatchesTab() {
     // 1. Semis day
     store.addActivity({
       date: bDate, type: 'other', fieldIds: [], workerCount: 0,
-      notes: `${bSeeds} graines · ${bPlaqueCount} plaque(s) ${bPlaqueRows}×${bPlaqueCols}`,
+      notes: `${bSeeds} graines · ${bPlaqueCount} plaque(s) ${selectedPreset.rows}×${selectedPreset.cols}`,
       other: { title: `🌱 Semis — ${batchLabel}` },
     })
 
@@ -933,11 +935,12 @@ function BatchesTab() {
   }
 
   const handleAddPlaque = (batchId: number) => {
-    if (!pName.trim()) { toast('⚠ Nom requis', true); return }
-    const plaque: typeof plaques[0] = { id: nextPlaqueId, name: pName.trim(), rows: pRows, cols: pCols, filledCount: pRows * pCols, batchId }
+    if (!apName.trim()) { toast('⚠ Nom requis', true); return }
+    const pr = PLAQUE_PRESETS[apPreset]
+    const plaque: typeof plaques[0] = { id: nextPlaqueId, name: apName.trim(), rows: pr.rows, cols: pr.cols, filledCount: pr.rows * pr.cols, batchId }
     updateField(fieldId, { plaques: [...plaques, plaque] })
-    toast(`✓ Plaque créée`)
-    setPName(''); setAddingPlaqueFor(null)
+    toast(`✓ Plaque créée (${pr.rows}×${pr.cols})`)
+    setApName(''); setAddingPlaqueFor(null)
   }
 
   const updatePlaque = (id: number, patch: Partial<typeof plaques[0]>) => {
@@ -1176,7 +1179,7 @@ function BatchesTab() {
                   Plaques ({bPlaques.length}) · {totalFilled}/{totalAlveoles} alvéoles ({fillPct}%)
                 </div>
                 {!archived && (
-                  <button onClick={() => { setAddingPlaqueFor(b.id); setPName(`${b.name} — P${bPlaques.length + 1}`); setPRows(bPlaques[0]?.rows || 6); setPCols(bPlaques[0]?.cols || 12) }}
+                  <button onClick={() => { setAddingPlaqueFor(b.id); setApName(`${b.name} — P${bPlaques.length + 1}`) }}
                     className="font-mono text-[8px] px-2 py-0.5 border border-olive-lit/40 text-olive-lit bg-transparent cursor-pointer hover:bg-olive/20">+ Plaque</button>
                 )}
               </div>
@@ -1220,12 +1223,12 @@ function BatchesTab() {
               {/* Add plaque form */}
               {addingPlaqueFor === b.id && (
                 <div className="bg-panel border border-border p-2 space-y-1.5">
-                  <input type="text" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Nom"
+                  <input type="text" value={apName} onChange={(e) => setApName(e.target.value)} placeholder="Nom"
                     className="w-full font-mono text-[10px] bg-bg border border-border text-text py-1 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
                   <div className="flex flex-wrap gap-1">
-                    {PLAQUE_PRESETS.map((pr) => (
-                      <button key={pr.label} onClick={() => { setPRows(pr.rows); setPCols(pr.cols) }}
-                        className={`font-mono text-[8px] px-1.5 py-0.5 border cursor-pointer transition-all ${pRows === pr.rows && pCols === pr.cols ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted'}`}>
+                    {PLAQUE_PRESETS.map((pr, i) => (
+                      <button key={pr.label} onClick={() => setApPreset(i)}
+                        className={`font-mono text-[8px] px-1.5 py-0.5 border cursor-pointer transition-all ${apPreset === i ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted'}`}>
                         {pr.label}
                       </button>
                     ))}
