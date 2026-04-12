@@ -95,7 +95,7 @@ export function FieldList() {
           {freeParcelles.map((f) => (
             <div key={f.id}>
               <FieldCard field={f} isSelected={f.id === selectedFieldId} onSelect={() => selectField(f.id)} />
-              {f.points.map((pt, i) => (
+              {f.id === selectedFieldId && f.points.map((pt, i) => (
                 <PointRow key={`${f.id}-${i}`} field={f} point={pt} index={i} />
               ))}
             </div>
@@ -268,7 +268,7 @@ function ChampCard({ champ }: { champ: Champ }) {
             <div key={f.id}>
               <FieldCard field={f} isSelected={f.id === selectedFieldId} onSelect={() => selectField(f.id)}
                 champId={champ.id} onRemoveFromChamp={() => handleRemoveParcelle(f.id)} />
-              {f.points.map((pt, i) => (
+              {f.id === selectedFieldId && f.points.map((pt, i) => (
                 <PointRow key={`${f.id}-${i}`} field={f} point={pt} index={i} />
               ))}
             </div>
@@ -349,7 +349,7 @@ function FieldCard({ field: f, isSelected, onSelect, champId, onRemoveFromChamp 
         }
       }}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2">
         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: f.color }} />
         {editing ? (
           <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
@@ -361,19 +361,20 @@ function FieldCard({ field: f, isSelected, onSelect, champId, onRemoveFromChamp 
             onDoubleClick={(e) => { e.stopPropagation(); setEditName(f.name); setEditing(true) }}
             title="Double-clic pour renommer">{f.name}</span>
         )}
-        {f.points.length > 0 ? (
-          <button onClick={(e) => { e.stopPropagation(); togglePoints() }}
-            className={`font-mono text-[9px] px-1.5 py-px border cursor-pointer transition-all
-              ${pointsVisible ? 'text-amber bg-amber/10 border-amber/25' : 'text-muted bg-transparent border-border line-through'}`}>
-            {f.points.length} pts {pointsVisible ? '◉' : '○'}
-          </button>
-        ) : (
-          <span className="font-mono text-[9px] text-muted bg-transparent border border-border px-1.5 py-px">0 pts</span>
-        )}
+        <span className="font-mono text-[9px] text-muted">{f.area.toFixed(2)} ha</span>
+        <span className="font-mono text-[9px] text-muted">{f.points.length} pts</span>
       </div>
-      <div className="font-mono text-[10px] text-muted leading-relaxed">
+      {isSelected && <>
+      <div className="font-mono text-[10px] text-muted leading-relaxed mt-1">
         {f.area.toFixed(2)} ha · {Math.round(f.area * 10000).toLocaleString('fr-FR')} m²
       </div>
+      {f.points.length > 0 && (
+        <button onClick={(e) => { e.stopPropagation(); togglePoints() }}
+          className={`font-mono text-[9px] px-1.5 py-px border cursor-pointer transition-all mt-1
+            ${pointsVisible ? 'text-amber bg-amber/10 border-amber/25' : 'text-muted bg-transparent border-border line-through'}`}>
+          {f.points.length} pts {pointsVisible ? '◉ Masquer' : '○ Afficher'}
+        </button>
+      )}
       <FieldMeta field={f} />
       {addingPointHere && <AddPointInputs fieldId={f.id} />}
       <div className="flex gap-1 mt-1.5 flex-wrap">
@@ -424,6 +425,7 @@ function FieldCard({ field: f, isSelected, onSelect, champId, onRemoveFromChamp 
         )}
       </div>
       {archiveOpen && <ArchiveFieldModal fieldId={f.id} onClose={() => setArchiveOpen(false)} />}
+      </>}
     </div>
   )
 }
