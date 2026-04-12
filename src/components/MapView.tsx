@@ -703,8 +703,10 @@ async function restorePersistedData(map: L.Map, userId?: string) {
     saved.champs.forEach((sc) => {
       const champ: Champ = {
         id: sc.id, name: sc.name, color: sc.color,
+        type: (sc as any).type || 'champ',
         parcelleIds: sc.parcelleIds,
         customOutline: sc.customOutline,
+        serreInfo: (sc as any).serreInfo,
       }
       store.addChamp(champ)
     })
