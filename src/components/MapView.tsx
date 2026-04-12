@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet-draw'
 import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
-import { calcArea, calcPerimeter, isInsidePolygon, computeChampOutline } from '../utils/geometry'
+import { calcArea, calcPerimeter, isInsidePolygon, computeChampOutline, computeChampOutlineMulti } from '../utils/geometry'
 import { loadFromStorage, loadFromCloud, setCurrentUserId } from '../utils/persistence'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import { useAuth } from '../contexts/AuthContext'
@@ -548,11 +548,16 @@ export function renderChampOnMap(champId: number) {
     return
   }
 
-  const outline = champ.customOutline ?? computeChampOutline(parcelles.map((p) => p.latlngs))
-  if (outline.length < 3) return
+  // Support disjoint parcelles: multi-polygon when parcelles don't touch
+  const outlines = champ.customOutline
+    ? [champ.customOutline]
+    : computeChampOutlineMulti(parcelles.map((p) => p.latlngs))
+  if (outlines.length === 0 || outlines.every((o) => o.length < 3)) return
 
-  const leafletLatLngs = outline.map((ll) => L.latLng(ll.lat, ll.lng))
-  const layer = L.polygon(leafletLatLngs, {
+  const multiLatLngs = outlines
+    .filter((o) => o.length >= 3)
+    .map((o) => o.map((ll) => L.latLng(ll.lat, ll.lng)))
+  const layer = L.polygon(multiLatLngs, {
     color: champ.color, weight: 3, fillColor: champ.color, fillOpacity: 0.04, dashArray: '10 6',
   }).addTo(map)
 
@@ -675,14 +680,16 @@ async function restorePersistedData(map: L.Map, userId: string) {
   if (saved.champs && saved.champs.length > 0) {
     saved.champs.forEach((sc) => {
       const parcelles = (useAppStore.getState().fields).filter((f) => sc.parcelleIds.includes(f.id) && !f.archived)
-      const outline = sc.customOutline ?? (parcelles.length >= 1 ? computeChampOutline(parcelles.map((p) => p.latlngs)) : [])
+      const outlines = sc.customOutline
+        ? [sc.customOutline]
+        : (parcelles.length >= 1 ? computeChampOutlineMulti(parcelles.map((p) => p.latlngs)) : [])
 
       let layer: L.Polygon | undefined
       let labelMarker: L.Marker | undefined
 
-      if (outline.length >= 3) {
-        const leafletLatLngs = outline.map((ll) => L.latLng(ll.lat, ll.lng))
-        layer = L.polygon(leafletLatLngs, {
+      if (outlines.length > 0 && outlines.some((o) => o.length >= 3)) {
+        const multiLatLngs = outlines.filter((o) => o.length >= 3).map((o) => o.map((ll) => L.latLng(ll.lat, ll.lng)))
+        layer = L.polygon(multiLatLngs, {
           color: sc.color, weight: 3, fillColor: sc.color, fillOpacity: 0.04, dashArray: '10 6',
         }).addTo(map)
         layer.on('click', () => { useAppStore.getState().selectChamp(sc.id) })

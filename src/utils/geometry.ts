@@ -89,44 +89,44 @@ export function computeConvexHull(points: LatLng[]): LatLng[] {
  * Compute champ outline from its parcelles' polygons.
  * Uses Turf.js polygon union so the outline tightly follows the actual
  * parcelle boundaries instead of producing a loose convex hull.
+ * Returns multiple polygons when parcelles are disjoint (MultiPolygon).
  * Falls back to convex hull if the union fails for any reason.
  */
 export function computeChampOutline(parcellePolygons: LatLng[][]): LatLng[] {
+  return computeChampOutlineMulti(parcellePolygons).flat()
+}
+
+export function computeChampOutlineMulti(parcellePolygons: LatLng[][]): LatLng[][] {
   if (parcellePolygons.length === 0) return []
-  if (parcellePolygons.length === 1) return [...parcellePolygons[0]]
+  if (parcellePolygons.length === 1) return [[...parcellePolygons[0]]]
 
   try {
-    // Convert each parcelle to a closed GeoJSON polygon ring
     const turfPolys = parcellePolygons.map((poly) => {
       const ring = poly.map((p) => [p.lng, p.lat] as [number, number])
-      // Close the ring if not already closed
       if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
         ring.push([...ring[0]] as [number, number])
       }
       return turfPolygon([ring])
     })
 
-    // Iteratively union all polygons
     let merged = turfPolys[0]
     for (let i = 1; i < turfPolys.length; i++) {
       const result = turfUnion(merged, turfPolys[i])
       if (result) merged = result
     }
 
-    // Extract the outer ring from the result
-    const coords = merged.geometry.type === 'MultiPolygon'
-      ? merged.geometry.coordinates[0][0]   // Take the first polygon's outer ring
-      : merged.geometry.coordinates[0]      // Polygon outer ring
+    // Extract all outer rings (handles both Polygon and MultiPolygon)
+    const allRings: number[][][] = merged.geometry.type === 'MultiPolygon'
+      ? merged.geometry.coordinates.map((poly: number[][][]) => poly[0])
+      : [merged.geometry.coordinates[0]]
 
-    // Convert back to LatLng (drop the closing duplicate point)
-    const outline: LatLng[] = coords
-      .slice(0, -1)
-      .map(([lng, lat]: number[]) => ({ lat, lng }))
+    const outlines: LatLng[][] = allRings
+      .map((ring: number[][]) => ring.slice(0, -1).map(([lng, lat]: number[]) => ({ lat, lng })))
+      .filter((o: LatLng[]) => o.length >= 3)
 
-    return outline.length >= 3 ? outline : computeConvexHull(parcellePolygons.flat())
+    return outlines.length > 0 ? outlines : [computeConvexHull(parcellePolygons.flat())]
   } catch {
-    // Fallback to convex hull if union fails
-    return computeConvexHull(parcellePolygons.flat())
+    return [computeConvexHull(parcellePolygons.flat())]
   }
 }
 
