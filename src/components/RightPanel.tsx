@@ -168,6 +168,19 @@ function ArchivesSection() {
                 title="Désarchiver">
                 ↶
               </button>
+              <button
+                onClick={() => {
+                  if (!window.confirm(`Supprimer définitivement « ${f.name} » ?\nCette action est irréversible.`)) return
+                  f.layer?.remove()
+                  f.labelMarker?.remove()
+                  f.pointMarkers.forEach((m) => m.remove())
+                  useAppStore.getState().removeField(f.id)
+                  toast(`✓ "${f.name}" supprimée`)
+                }}
+                className="btn-sm btn-danger text-[10px]"
+                title="Supprimer définitivement">
+                ✕
+              </button>
             </div>
           </div>
         ))}

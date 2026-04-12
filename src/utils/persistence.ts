@@ -129,6 +129,8 @@ export function buildPersistedData(state: {
     archivedAt?: string
     archivedVisible?: boolean
     champId?: number
+    batches?: any[]
+    plaques?: any[]
   }>
   fieldIdCounter: number
   champs: Champ[]
