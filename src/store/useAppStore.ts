@@ -84,6 +84,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChampLayer: (champId, layer, label) => {
     set((s) => ({ champs: s.champs.map((c) => c.id === champId ? { ...c, layer, labelMarker: label } : c) }))
   },
+  updateSerreInfo: (champId, info) => {
+    set((s) => ({
+      champs: s.champs.map((c) => c.id === champId
+        ? { ...c, serreInfo: { ...(c.serreInfo || { status: 'semis' as const }), ...info } }
+        : c)
+    }))
+    persist(get())
+  },
+  transferSerre: (serreId, targetChampId) => {
+    set((s) => {
+      const serre = s.champs.find((c) => c.id === serreId)
+      if (!serre) return {}
+      return {
+        champs: s.champs.map((c) => {
+          if (c.id === serreId) return { ...c, parcelleIds: [], serreInfo: { ...(c.serreInfo || { status: 'semis' as const }), status: 'transfere' as const, transferDate: new Date().toISOString().slice(0, 10), targetChampId } }
+          if (c.id === targetChampId) return { ...c, parcelleIds: [...c.parcelleIds, ...serre.parcelleIds] }
+          return c
+        }),
+        fields: s.fields.map((f) => serre.parcelleIds.includes(f.id) ? { ...f, champId: targetChampId } : f),
+      }
+    })
+    persist(get())
+  },
 
   // ── Fields ──
   addField: (field) => {

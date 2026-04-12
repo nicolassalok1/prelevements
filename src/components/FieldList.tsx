@@ -5,12 +5,26 @@ import { calcArea, calcPerimeter } from '../utils/geometry'
 import { addPointFromCoords, renderChampOnMap } from './MapView'
 import { ArchiveFieldModal } from './ArchiveFieldModal'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
-import type { Field, LatLng, Champ } from '../types'
+import type { Field, LatLng, Champ, GerminationStatus } from '../types'
 
 const CHAMP_COLORS = [
   '#e0c040', '#40c0e0', '#e06040', '#60e080', '#c060e0',
   '#e0a040', '#4080e0', '#80e040', '#e04080', '#40e0c0',
 ]
+const SERRE_COLORS = [
+  '#80d090', '#60c0a0', '#a0d060', '#50b080', '#70c070',
+  '#90d080', '#60b0a0', '#80c060', '#50d070', '#70b090',
+]
+
+const GERMINATION_LABELS: Record<GerminationStatus, string> = {
+  semis: 'Semis', germination: 'Germination', croissance: 'Croissance',
+  pret_transfert: 'Prêt au transfert', transfere: 'Transféré',
+}
+const GERMINATION_COLOR: Record<GerminationStatus, string> = {
+  semis: 'text-muted border-border', germination: 'text-cyan border-cyan/60',
+  croissance: 'text-amber border-amber/60', pret_transfert: 'text-olive-lit border-olive-lit/60',
+  transfere: 'text-muted border-border line-through',
+}
 
 export function FieldList() {
   const allFields = useAppStore((s) => s.fields)
@@ -21,6 +35,8 @@ export function FieldList() {
   const exploitPolygon = useAppStore((s) => s.exploitPolygon)
   const [creatingChamp, setCreatingChamp] = useState(false)
   const [newChampName, setNewChampName] = useState('')
+  const [creatingSerre, setCreatingSerre] = useState(false)
+  const [newSerreName, setNewSerreName] = useState('')
 
   if (!fields.length && !champs.length) {
     return (
@@ -42,11 +58,24 @@ export function FieldList() {
     const store = useAppStore.getState()
     const id = store.champIdCounter + 1
     const color = CHAMP_COLORS[(id - 1) % CHAMP_COLORS.length]
-    const champ: Champ = { id, name, color, parcelleIds: [] }
+    const champ: Champ = { id, name, color, type: 'champ', parcelleIds: [] }
     store.addChamp(champ)
     store.toast(`✓ Champ "${name}" créé`)
     setNewChampName('')
     setCreatingChamp(false)
+  }
+
+  const handleCreateSerre = () => {
+    const name = newSerreName.trim()
+    if (!name) return
+    const store = useAppStore.getState()
+    const id = store.champIdCounter + 1
+    const color = SERRE_COLORS[(id - 1) % SERRE_COLORS.length]
+    const serre: Champ = { id, name, color, type: 'serre', parcelleIds: [], serreInfo: { status: 'semis' } }
+    store.addChamp(serre)
+    store.toast(`✓ Serre "${name}" créée`)
+    setNewSerreName('')
+    setCreatingSerre(false)
   }
 
   return (
@@ -78,14 +107,14 @@ export function FieldList() {
       )}
 
       {/* Champs */}
-      {champs.map((champ) => (
+      {champs.filter((c) => c.type !== 'serre').map((champ) => (
         <ChampCard key={`champ-${champ.id}`} champ={champ} />
       ))}
 
       {/* Parcelles libres */}
       {freeParcelles.length > 0 && (
         <>
-          {champs.length > 0 && (
+          {champs.filter((c) => c.type !== 'serre').length > 0 && (
             <div className="px-3 py-1.5 border-b border-border bg-bg/40">
               <span className="font-mono text-[9px] text-muted tracking-[1.5px] uppercase">
                 Parcelles libres ({freeParcelles.length})
@@ -99,6 +128,42 @@ export function FieldList() {
                 <PointRow key={`${f.id}-${i}`} field={f} point={pt} index={i} />
               ))}
             </div>
+          ))}
+        </>
+      )}
+
+      {/* ── SERRES ── */}
+      {exploitPolygon && (
+        <>
+          <div className="px-3 py-2.5 border-t-2 border-b border-border flex items-center gap-2 shrink-0 bg-bg/40">
+            <div className="font-mono text-[10px] text-olive-lit tracking-[2px] flex-1 flex items-center gap-1.5 before:content-[''] before:w-3 before:h-px before:bg-olive-lit uppercase">
+              Serres
+            </div>
+          </div>
+          <div className="px-3 py-2 border-b border-border">
+            {creatingSerre ? (
+              <div className="flex gap-1.5">
+                <input
+                  type="text" value={newSerreName}
+                  onChange={(e) => setNewSerreName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSerre(); if (e.key === 'Escape') setCreatingSerre(false) }}
+                  placeholder="Nom de la serre..." autoFocus
+                  className="flex-1 font-mono text-[10px] bg-bg border border-olive-lit text-text py-1 px-2 outline-none"
+                />
+                <button className="btn-sm btn-active text-[10px]" onClick={handleCreateSerre}>✓</button>
+                <button className="btn-sm btn-danger text-[10px]" onClick={() => setCreatingSerre(false)}>✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setCreatingSerre(true)}
+                className="w-full py-1.5 bg-olive/10 border border-olive-lit/30 text-olive-lit font-mono text-[10px] tracking-[1px] uppercase cursor-pointer hover:bg-olive/20 transition-all"
+              >
+                + Nouvelle serre
+              </button>
+            )}
+          </div>
+          {champs.filter((c) => c.type === 'serre').map((serre) => (
+            <SerreCard key={`serre-${serre.id}`} champ={serre} />
           ))}
         </>
       )}
@@ -536,6 +601,235 @@ function FieldMeta({ field }: { field: Field }) {
           {amendCount > 0 && <span className="text-olive-lit">{amendCount} engrais</span>}
           {otherCount > 0 && <span className="text-amber">{otherCount} autre{otherCount > 1 ? 's' : ''}</span>}
           {soilCount > 0 && <span className="text-amber">{soilCount} analyse{soilCount > 1 ? 's' : ''}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════
+//  SERRE CARD
+// ═══════════════════════════════════════
+
+function SerreCard({ champ }: { champ: Champ }) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState(champ.name)
+  const [assigning, setAssigning] = useState(false)
+  const [selectedParcelleIds, setSelectedParcelleIds] = useState<number[]>([])
+  const [transferTarget, setTransferTarget] = useState<number | null>(null)
+  const allFields = useAppStore((s) => s.fields).filter((f) => !f.archived)
+  const allChamps = useAppStore((s) => s.champs)
+  const selectedFieldId = useAppStore((s) => s.selectedFieldId)
+  const selectField = useAppStore((s) => s.selectField)
+  const drawTarget = useAppStore((s) => s.drawTarget)
+  const drawForChampId = useAppStore((s) => s.drawForChampId)
+  const isDrawingForThis = drawTarget === 'field' && drawForChampId === champ.id
+
+  const parcelles = allFields.filter((f) => champ.parcelleIds.includes(f.id))
+  const freeParcelles = allFields.filter((f) => !f.champId)
+  const totalArea = parcelles.reduce((s, f) => s + f.area, 0)
+  const info = champ.serreInfo || { status: 'semis' as GerminationStatus }
+  const targetChamps = allChamps.filter((c) => c.type === 'champ')
+
+  const hasSelectedParcelle = selectedFieldId != null && champ.parcelleIds.includes(selectedFieldId)
+  useEffect(() => {
+    if (hasSelectedParcelle && !open) setOpen(true)
+  }, [hasSelectedParcelle])
+
+  const handleRename = () => {
+    const name = editName.trim()
+    if (!name) { setEditName(champ.name); setEditing(false); return }
+    useAppStore.getState().updateChamp(champ.id, { name })
+    if (champ.labelMarker) {
+      champ.labelMarker.setIcon(L.divIcon({
+        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px;text-transform:uppercase">${name}</div>`,
+        iconSize: [0, 0], className: '',
+      }))
+    }
+    useAppStore.getState().toast(`✓ Serre renommée en "${name}"`)
+    setEditing(false)
+  }
+
+  const handleDelete = () => {
+    if (!window.confirm(`Supprimer la serre "${champ.name}" ?\nLes parcelles seront conservées mais détachées.`)) return
+    champ.layer?.remove()
+    champ.labelMarker?.remove()
+    useAppStore.getState().removeChamp(champ.id)
+    useAppStore.getState().toast(`Serre "${champ.name}" supprimée`)
+  }
+
+  const handleAssignParcelle = (fieldId: number) => {
+    useAppStore.getState().addParcelleToChamp(champ.id, fieldId)
+  }
+
+  const handleRemoveParcelle = (fieldId: number) => {
+    useAppStore.getState().removeParcelleFromChamp(champ.id, fieldId)
+    renderChampOnMap(champ.id)
+    useAppStore.getState().toast(`Parcelle retirée de la serre`)
+  }
+
+  const handleTransfer = () => {
+    if (!transferTarget) return
+    const target = allChamps.find((c) => c.id === transferTarget)
+    if (!target) return
+    if (!window.confirm(`Transférer ${parcelles.length} parcelle(s) de "${champ.name}" vers le champ "${target.name}" ?`)) return
+    useAppStore.getState().transferSerre(champ.id, transferTarget)
+    renderChampOnMap(champ.id)
+    renderChampOnMap(transferTarget)
+    useAppStore.getState().toast(`✓ Parcelles transférées vers "${target.name}"`)
+    setTransferTarget(null)
+  }
+
+  return (
+    <div className="border-b border-border">
+      <div className="px-3 py-2 cursor-pointer hover:bg-olive/10 transition-all flex items-center gap-2" onClick={() => setOpen(!open)}>
+        <span className="text-[10px] text-muted transition-transform" style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+        <div className="w-3 h-3 rounded-sm shrink-0 border border-white/20" style={{ background: champ.color }} />
+        {editing ? (
+          <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setEditName(champ.name); setEditing(false) } }}
+            onClick={(e) => e.stopPropagation()} autoFocus
+            className="flex-1 font-mono text-[10px] bg-bg border border-olive-lit text-text py-0.5 px-1 outline-none" />
+        ) : (
+          <span className="font-ui text-[12px] font-semibold text-text flex-1 truncate" title={champ.name}>{champ.name}</span>
+        )}
+        <span className={`font-mono text-[9px] px-1.5 py-px border ${GERMINATION_COLOR[info.status]}`}>
+          {GERMINATION_LABELS[info.status]}
+        </span>
+        <span className="font-mono text-[9px] text-muted">{parcelles.length} parc.</span>
+        {totalArea > 0 && <span className="font-mono text-[9px] text-muted">{totalArea.toFixed(2)} ha</span>}
+      </div>
+
+      {open && (
+        <div className="px-3 pb-2">
+          {/* Germination tracking */}
+          {info.status !== 'transfere' && (
+            <div className="bg-bg/60 border border-border p-2 mb-2 space-y-2">
+              <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1.5px]">Suivi germination</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Statut</div>
+                  <select value={info.status}
+                    onChange={(e) => useAppStore.getState().updateSerreInfo(champ.id, { status: e.target.value as GerminationStatus })}
+                    className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit">
+                    <option value="semis">Semis</option>
+                    <option value="germination">Germination</option>
+                    <option value="croissance">Croissance</option>
+                    <option value="pret_transfert">Prêt au transfert</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Nb. noeuds</div>
+                  <input type="number" min={0} max={10} value={info.nodeCount ?? ''} placeholder="—"
+                    onChange={(e) => useAppStore.getState().updateSerreInfo(champ.id, { nodeCount: e.target.value ? parseInt(e.target.value) : undefined })}
+                    className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit placeholder:text-muted" />
+                </div>
+              </div>
+              <div>
+                <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Date de semis</div>
+                <input type="date" value={info.germinationDate || ''}
+                  onChange={(e) => useAppStore.getState().updateSerreInfo(champ.id, { germinationDate: e.target.value || undefined })}
+                  className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+              </div>
+
+              {/* Transfer to field */}
+              {(info.status === 'pret_transfert' || info.status === 'croissance') && parcelles.length > 0 && targetChamps.length > 0 && (
+                <div className="border-t border-border pt-2">
+                  <div className="font-mono text-[8px] text-olive-lit uppercase mb-1">Transférer vers un champ</div>
+                  <div className="flex gap-1">
+                    <select value={transferTarget ?? ''} onChange={(e) => setTransferTarget(e.target.value ? parseInt(e.target.value) : null)}
+                      className="flex-1 font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit">
+                      <option value="">— Choisir un champ —</option>
+                      {targetChamps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button onClick={handleTransfer} disabled={!transferTarget}
+                      className="btn-sm btn-active text-[10px] disabled:opacity-30 disabled:cursor-not-allowed">
+                      Transférer →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {info.status === 'transfere' && info.transferDate && (
+            <div className="bg-bg/60 border border-border p-2 mb-2">
+              <div className="font-mono text-[10px] text-muted">
+                Transféré le {new Date(info.transferDate).toLocaleDateString('fr-FR')}
+                {info.targetChampId && (() => {
+                  const t = allChamps.find((c) => c.id === info.targetChampId)
+                  return t ? ` vers "${t.name}"` : ''
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-1 mb-2 flex-wrap">
+            {isDrawingForThis ? (
+              <button className="btn-sm btn-danger flex-1 text-[10px]"
+                onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawTarget(null); useAppStore.getState().setDrawForChampId(null); useAppStore.getState().setStatus('EN ATTENTE') }}>
+                ■ Annuler dessin
+              </button>
+            ) : (
+              <>
+                {info.status !== 'transfere' && (
+                  <div className="w-full border border-border bg-bg/40 p-1.5 mb-1">
+                    <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1.5px] mb-1.5">Ajouter une parcelle</div>
+                    <div className="flex gap-1">
+                      <button className="btn-sm btn-active flex-1 text-[10px]" title="Dessiner une nouvelle parcelle"
+                        onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawForChampId(champ.id); useAppStore.getState().setDrawTarget('field'); useAppStore.getState().setStatus(`DESSIN PARCELLE pour serre "${champ.name}"`) }}>
+                        ▭ Dessiner
+                      </button>
+                      <button className="btn-sm btn-cyan flex-1 text-[10px]" title="Assigner des parcelles existantes"
+                        onClick={(e) => { e.stopPropagation(); if (!assigning) setSelectedParcelleIds([]); setAssigning(!assigning) }}>⊕ Existantes</button>
+                    </div>
+                  </div>
+                )}
+                <button className="btn-sm btn-cyan text-[10px]" title="Renommer"
+                  onClick={(e) => { e.stopPropagation(); setEditName(champ.name); setEditing(true) }}>✎ Renommer</button>
+                <button className="btn-sm btn-danger text-[10px]" title="Supprimer"
+                  onClick={(e) => { e.stopPropagation(); handleDelete() }}>✕</button>
+              </>
+            )}
+          </div>
+
+          {/* Assign existing parcelles */}
+          {assigning && freeParcelles.length > 0 && (
+            <div className="mb-2 p-1.5 bg-bg border border-olive-lit/30 space-y-1">
+              <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1px]">Parcelles disponibles</div>
+              {freeParcelles.map((f) => {
+                const selected = selectedParcelleIds.includes(f.id)
+                return (
+                  <button key={f.id}
+                    onClick={() => setSelectedParcelleIds(selected ? selectedParcelleIds.filter((x) => x !== f.id) : [...selectedParcelleIds, f.id])}
+                    className={`w-full text-left px-2 py-1 font-mono text-[10px] border cursor-pointer transition-all flex items-center gap-1.5
+                      ${selected ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted hover:border-olive-lit'}`}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />{f.name} <span className="text-[9px] ml-auto">{f.area.toFixed(2)} ha</span>
+                  </button>
+                )
+              })}
+              <div className="flex gap-1 pt-1">
+                <button className="btn-sm btn-active flex-1 text-[10px]" disabled={!selectedParcelleIds.length}
+                  onClick={() => { selectedParcelleIds.forEach((id) => handleAssignParcelle(id)); setAssigning(false); setSelectedParcelleIds([]); renderChampOnMap(champ.id) }}>
+                  ✓ Assigner ({selectedParcelleIds.length})
+                </button>
+                <button className="btn-sm btn-danger text-[10px]" onClick={() => { setAssigning(false); setSelectedParcelleIds([]) }}>Annuler</button>
+              </div>
+            </div>
+          )}
+
+          {/* Parcelles */}
+          {parcelles.map((f) => (
+            <div key={f.id}>
+              <FieldCard field={f} isSelected={f.id === selectedFieldId} onSelect={() => selectField(f.id)}
+                champId={champ.id} onRemoveFromChamp={() => handleRemoveParcelle(f.id)} />
+              {f.id === selectedFieldId && f.points.map((pt, i) => (
+                <PointRow key={`${f.id}-${i}`} field={f} point={pt} index={i} />
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -5,12 +5,13 @@ import type { Activity, ActivityType, IrrigationMethod, AmendmentType } from '..
 const IRRIGATION_LABELS: Record<IrrigationMethod, string> = { goutte_a_goutte: 'Goutte à goutte', aspersion: 'Aspersion', gravitaire: 'Gravitaire', manuel: 'Manuel' }
 const AMENDMENT_LABELS: Record<AmendmentType, string> = { organique: 'Organique', mineral: 'Minéral', foliaire: 'Foliaire', correcteur: 'Correcteur' }
 
-const TYPE_LABELS: Record<ActivityType, string> = { watering: 'Arrosage', amendment: 'Engrais', other: 'Autre', expense: 'Dépense' }
+const TYPE_LABELS: Record<ActivityType, string> = { watering: 'Arrosage', amendment: 'Engrais', other: 'Autre', expense: 'Dépense', salary: 'Salaire' }
 const TYPE_COLOR: Record<ActivityType, string> = {
   watering: 'text-cyan border-cyan/60',
   amendment: 'text-olive-lit border-olive-lit/60',
   other: 'text-amber border-amber/60',
   expense: 'text-red border-red/60',
+  salary: 'text-amber border-amber/60',
 }
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
@@ -27,6 +28,11 @@ function activityLabel(a: Activity): string {
   if (a.type === 'expense') {
     const cat = a.expense?.category ? ` — ${a.expense.category}` : ''
     return `Dépense${cat} · ${formatDH(a.expense?.amount ?? 0)}`
+  }
+  if (a.type === 'salary' && a.salary) {
+    const hours = a.salary.duration === 'full' ? 8 : 4
+    const total = a.salary.workerCount * a.salary.hourlyRate * hours
+    return `Salaire · ${a.salary.workerCount} ouv. × ${a.salary.duration === 'full' ? '1j' : '½j'} · ${formatDH(total)}`
   }
   return a.other?.title || 'Activité'
 }
@@ -72,9 +78,10 @@ export function CalendarPanel() {
       <div className="bg-panel border border-border w-full h-full md:w-[92vw] md:max-w-[720px] md:h-[85vh] flex flex-col">
         <div className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-3 border-b border-border">
           <span className="font-mono text-xs md:text-sm text-olive-lit tracking-[2px] uppercase flex-1 truncate">◰ Agenda</span>
-          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'watering' })} className="btn-cyan text-[10px]">💧</button>
-          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'amendment' })} className="btn-active text-[10px]">🌱</button>
-          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'expense' })} className="btn-danger text-[10px]">💰</button>
+          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'watering' })} className="btn-cyan text-[10px]" title="Arrosage">💧</button>
+          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'amendment' })} className="btn-active text-[10px]" title="Amendement">🌱</button>
+          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'expense' })} className="btn-danger text-[10px]" title="Dépense">💰</button>
+          <button onClick={() => openActivityForm({ date: selectedDay || todayISO(), presetType: 'salary' })} className="btn-amber text-[10px]" title="Salaire">👷</button>
           <button onClick={() => setOpen(false)} className="text-muted hover:text-red bg-transparent border-none text-lg cursor-pointer w-9 h-9 flex items-center justify-center">✕</button>
         </div>
 
@@ -142,12 +149,14 @@ export function CalendarPanel() {
                   {new Date(selectedDay).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ({dayActivities.length})
                 </div>
               </div>
-              <div className="flex gap-1 mb-2 flex-wrap">
+              <div className="flex gap-1 mb-1 flex-wrap">
                 <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'watering' })} className="btn-sm btn-cyan text-[10px] flex-1">💧 Arrosage</button>
                 <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'amendment' })} className="btn-sm btn-active text-[10px] flex-1">🌱 Amendement</button>
                 <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'expense' })} className="btn-sm btn-danger text-[10px] flex-1">💰 Dépense</button>
-                <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'other' })} className="btn-sm text-[10px] border border-amber text-amber bg-amber/10 hover:bg-amber/20 cursor-pointer flex-1">✦ Autre</button>
+                <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'salary' })} className="btn-sm text-[10px] border border-amber text-amber bg-amber/10 hover:bg-amber/20 cursor-pointer flex-1">👷 Salaire</button>
+                <button onClick={() => openActivityForm({ date: selectedDay, presetType: 'other' })} className="btn-sm text-[10px] border border-border text-muted hover:text-text hover:border-olive cursor-pointer flex-1">✦ Autre</button>
               </div>
+              <button onClick={() => openActivityForm({ date: selectedDay })} className="w-full btn-sm text-[10px] border border-olive-lit text-olive-lit bg-olive/10 hover:bg-olive/20 cursor-pointer mb-2">+ Ajouter une activité</button>
               {dayActivities.length ? (
                 <div className="space-y-1">
                   {dayActivities.map((a) => <ActivityRow key={a.id} activity={a} />)}
@@ -194,6 +203,11 @@ function ActivityRow({ activity }: { activity: Activity }) {
       )}
       {activity.type === 'amendment' && activity.amendment && (
         <div className="font-mono text-[10px] text-muted mt-1">{activity.amendment.quantityKg} kg</div>
+      )}
+      {activity.type === 'salary' && activity.salary && (
+        <div className="font-mono text-[10px] text-muted mt-1">
+          {activity.salary.workerCount} ouvrier{activity.salary.workerCount > 1 ? 's' : ''} · {activity.salary.hourlyRate} DH/h · {activity.salary.duration === 'full' ? '8h (journée)' : '4h (½ journée)'}
+        </div>
       )}
       {activity.notes && <div className="font-mono text-[10px] text-muted mt-1 border-t border-border/30 pt-1 italic">{activity.notes}</div>}
     </div>

@@ -92,7 +92,7 @@ export interface SoilAnalysis {
 
 // ── Activités (unifiées) ──
 
-export type ActivityType = 'watering' | 'amendment' | 'other' | 'expense'
+export type ActivityType = 'watering' | 'amendment' | 'other' | 'expense' | 'salary'
 
 export interface Activity {
   id: number
@@ -118,6 +118,11 @@ export interface Activity {
   expense?: {
     amount: number             // montant en dirhams (DH)
     category?: string          // catégorie libre (ex: "Carburant", "Matériel", "Main d'œuvre")
+  }
+  salary?: {
+    workerCount: number        // nombre d'ouvriers
+    hourlyRate: number         // taux horaire en DH
+    duration: 'full' | 'half'  // journée complète ou demi-journée
   }
   createdAt: string
 }
@@ -182,14 +187,28 @@ export interface Field {
   archivedVisible?: boolean   // runtime: show archived zone on map
 }
 
-// ── Champs (groupes de parcelles) ──
+// ── Champs & Serres (groupes de parcelles) ──
+
+export type ChampType = 'champ' | 'serre'
+
+export type GerminationStatus = 'semis' | 'germination' | 'croissance' | 'pret_transfert' | 'transfere'
+
+export interface SerreInfo {
+  germinationDate?: string        // ISO date du semis
+  status: GerminationStatus
+  nodeCount?: number              // nombre de nœuds actuels (objectif: 2-3)
+  targetChampId?: number          // champ cible pour le transfert
+  transferDate?: string           // ISO date du transfert
+}
 
 export interface Champ {
   id: number
   name: string
   color: string
-  parcelleIds: number[]       // IDs des parcelles composant ce champ
-  customOutline?: LatLng[]    // contour manuellement édité (sinon enveloppe convexe auto)
+  type: ChampType                 // 'champ' ou 'serre'
+  parcelleIds: number[]           // IDs des parcelles composant ce champ/serre
+  customOutline?: LatLng[]        // contour manuellement édité (sinon enveloppe convexe auto)
+  serreInfo?: SerreInfo           // infos serre (uniquement si type === 'serre')
   // Leaflet layers (runtime only)
   layer?: L.Polygon
   labelMarker?: L.Marker
@@ -289,6 +308,8 @@ export interface AppState {
   removeParcelleFromChamp: (champId: number, fieldId: number) => void
   setChampCustomOutline: (champId: number, outline: LatLng[] | undefined) => void
   setChampLayer: (champId: number, layer: L.Polygon, label: L.Marker) => void
+  updateSerreInfo: (champId: number, info: Partial<SerreInfo>) => void
+  transferSerre: (serreId: number, targetChampId: number) => void
 
   // Fields (parcelles)
   addField: (field: Field) => void

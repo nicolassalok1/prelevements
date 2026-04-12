@@ -72,6 +72,8 @@ export interface PersistedChamp {
   color: string
   parcelleIds: number[]
   customOutline?: LatLng[]
+  type?: 'champ' | 'serre'
+  serreInfo?: { germinationDate?: string; status: string; nodeCount?: number; targetChampId?: number; transferDate?: string }
 }
 
 export interface PersistedData {
@@ -166,6 +168,8 @@ export function buildPersistedData(state: {
       id: c.id, name: c.name, color: c.color,
       parcelleIds: c.parcelleIds,
       customOutline: c.customOutline,
+      type: c.type,
+      serreInfo: c.serreInfo,
     })),
     champIdCounter: state.champIdCounter,
     generationMethod: state.generationMethod,
@@ -206,6 +210,7 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
   data.activities ??= []
   data.activityIdCounter ??= 0
   data.champs ??= []
+  data.champs.forEach((c: any) => { c.type ??= 'champ' })
   data.champIdCounter ??= 0
   data.fieldIdCounter ??= data.fields?.length ?? 0
   data.generationMethod ??= 'grid'

@@ -146,7 +146,7 @@ export function MapView() {
 
     // ── Compass rose (north indicator) ──
     const CompassControl = L.Control.extend({
-      options: { position: 'topright' as L.ControlPosition },
+      options: { position: 'bottomleft' as L.ControlPosition },
       onAdd() {
         const container = L.DomUtil.create('div', 'leaflet-compass-rose')
         container.innerHTML = `<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">

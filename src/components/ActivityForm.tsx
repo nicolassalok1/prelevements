@@ -13,7 +13,6 @@ const AMENDMENT_LABELS: Record<AmendmentType, string> = { organique: 'Organique'
 const EXPENSE_CATEGORY_PRESETS: readonly string[] = [
   'Charges (eau, électricité, gaz)',
   'Installation',
-  'Salaires',
   'Matos',
   'Bouffe',
   'Carburant',
@@ -53,6 +52,10 @@ export function ActivityForm() {
   // Expense
   const [eAmount, setEAmount] = useState('')
   const [eCategory, setECategory] = useState('')
+  // Salary
+  const [sWorkers, setSWorkers] = useState(1)
+  const [sRate, setSRate] = useState('')
+  const [sDuration, setSDuration] = useState<'full' | 'half'>('full')
 
   // Initialize/reset when form opens
   useEffect(() => {
@@ -81,6 +84,11 @@ export function ActivityForm() {
           setEAmount(String(a.expense.amount))
           setECategory(a.expense.category || '')
         }
+        if (a.salary) {
+          setSWorkers(a.salary.workerCount)
+          setSRate(String(a.salary.hourlyRate))
+          setSDuration(a.salary.duration)
+        }
         return
       }
     }
@@ -93,6 +101,7 @@ export function ActivityForm() {
     setAType('organique'); setACustomType(''); setAProduct(''); setAQty(10)
     setOtherTitle('')
     setEAmount(''); setECategory('')
+    setSWorkers(1); setSRate(''); setSDuration('full')
   }, [open, editId, initialDate, presetType, presetFieldId])
 
   if (!open) return null
@@ -100,13 +109,18 @@ export function ActivityForm() {
   const toggleField = (id: number) => setFieldIds(fieldIds.includes(id) ? fieldIds.filter((x) => x !== id) : [...fieldIds, id])
 
   const handleSubmit = () => {
-    // Expenses may be general (no field) — every other type requires a zone.
-    if (type !== 'expense' && !fieldIds.length) {
+    // Expenses and salary may be general (no field) — every other type requires a zone.
+    if (type !== 'expense' && type !== 'salary' && !fieldIds.length) {
       toast('⚠ Sélectionnez au moins une zone', true); return
     }
-    // Watering and expense have no worker count; the rest require ≥1 worker.
-    if (type !== 'watering' && type !== 'expense' && workerCount < 1) {
+    // Watering, expense, salary have no generic worker count.
+    if (type !== 'watering' && type !== 'expense' && type !== 'salary' && workerCount < 1) {
       toast('⚠ Au moins 1 ouvrier', true); return
+    }
+    if (type === 'salary') {
+      const rate = parseFloat(sRate)
+      if (sWorkers < 1) { toast('⚠ Au moins 1 ouvrier', true); return }
+      if (!Number.isFinite(rate) || rate <= 0) { toast('⚠ Taux horaire invalide', true); return }
     }
     if (type === 'amendment' && !aProduct.trim()) { toast('⚠ Nom du produit requis', true); return }
     if (type === 'other' && !otherTitle.trim()) { toast('⚠ Titre de l\'activité requis', true); return }
@@ -118,11 +132,10 @@ export function ActivityForm() {
 
     const payload = {
       date, type,
-      // Expenses are strictly general — clear any stale fieldIds left over
-      // from a previous type switch, so they never appear under a zone tab.
-      fieldIds: type === 'expense' ? [] : fieldIds,
-      // Watering and expense have no worker count — stored as 0 for schema consistency.
-      workerCount: type === 'watering' || type === 'expense' ? 0 : workerCount,
+      // Expenses and salary are general — clear stale fieldIds.
+      fieldIds: type === 'expense' || type === 'salary' ? [] : fieldIds,
+      // Watering, expense, salary have no generic worker count — stored as 0.
+      workerCount: type === 'watering' || type === 'expense' || type === 'salary' ? 0 : workerCount,
       notes: notes.trim() || undefined,
       watering: type === 'watering' ? {
         method: wMethod,
@@ -139,6 +152,11 @@ export function ActivityForm() {
       expense: type === 'expense' ? {
         amount: parseFloat(eAmount),
         category: eCategory.trim() || undefined,
+      } : undefined,
+      salary: type === 'salary' ? {
+        workerCount: sWorkers,
+        hourlyRate: parseFloat(sRate),
+        duration: sDuration,
       } : undefined,
     }
 
@@ -167,24 +185,24 @@ export function ActivityForm() {
           {/* Type */}
           <div>
             <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Type d'activité</div>
-            <div className="grid grid-cols-4 gap-1">
-              {(['watering', 'amendment', 'other', 'expense'] as ActivityType[]).map((t) => (
+            <div className="grid grid-cols-5 gap-1">
+              {(['watering', 'amendment', 'other', 'expense', 'salary'] as ActivityType[]).map((t) => (
                 <button key={t} onClick={() => setType(t)}
                   className={`font-mono text-[11px] px-2 py-1.5 border cursor-pointer transition-all ${type === t ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted hover:text-text'}`}>
-                  {t === 'watering' ? 'Arrosage' : t === 'amendment' ? 'Engrais' : t === 'other' ? 'Autre' : 'Dépense'}
+                  {t === 'watering' ? 'Arrosage' : t === 'amendment' ? 'Engrais' : t === 'other' ? 'Autre' : t === 'expense' ? 'Dépense' : 'Salaire'}
                 </button>
               ))}
             </div>
           </div>
 
           {/* Date + (workers if applicable) */}
-          <div className={`grid gap-3 ${type === 'watering' || type === 'expense' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <div className={`grid gap-3 ${type === 'watering' || type === 'expense' || type === 'salary' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             <div>
               <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Date</div>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 className="w-full font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
             </div>
-            {type !== 'watering' && type !== 'expense' && (
+            {type !== 'watering' && type !== 'expense' && type !== 'salary' && (
               <div>
                 <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">Nombre d'ouvriers</div>
                 <input type="number" min={1} value={workerCount} onChange={(e) => setWorkerCount(parseInt(e.target.value) || 1)}
@@ -193,8 +211,8 @@ export function ActivityForm() {
             )}
           </div>
 
-          {/* Zones — hidden entirely for expenses (general by design) */}
-          {type !== 'expense' && (
+          {/* Zones — hidden for expenses and salary (general by design) */}
+          {type !== 'expense' && type !== 'salary' && (
             <div>
               <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1 flex items-center gap-2">
                 <span>Zones concernées</span>
@@ -333,13 +351,57 @@ export function ActivityForm() {
             </div>
           )}
 
+          {type === 'salary' && (
+            <div className="bg-bg border border-border p-3 space-y-2">
+              <div className="font-mono text-[9px] text-muted uppercase tracking-[1px]">Salaire</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-[.5px] mb-1">Ouvriers</div>
+                  <input type="number" min={1} value={sWorkers} onChange={(e) => setSWorkers(parseInt(e.target.value) || 1)}
+                    className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
+                </div>
+                <div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-[.5px] mb-1">Taux horaire</div>
+                  <div className="flex items-center gap-1">
+                    <input type="number" min={0} step="0.5" value={sRate} onChange={(e) => setSRate(e.target.value)} placeholder="—"
+                      className="flex-1 font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted w-0" />
+                    <span className="text-[9px] text-muted shrink-0">DH/h</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-[.5px] mb-1">Durée</div>
+                  <div className="flex gap-1">
+                    <button onClick={() => setSDuration('full')}
+                      className={`flex-1 font-mono text-[10px] py-1.5 border cursor-pointer transition-all ${sDuration === 'full' ? 'bg-olive border-olive-lit text-white' : 'bg-panel border-border text-muted hover:text-text'}`}>
+                      Journée
+                    </button>
+                    <button onClick={() => setSDuration('half')}
+                      className={`flex-1 font-mono text-[10px] py-1.5 border cursor-pointer transition-all ${sDuration === 'half' ? 'bg-olive border-olive-lit text-white' : 'bg-panel border-border text-muted hover:text-text'}`}>
+                      ½ journée
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {sRate && sWorkers > 0 && (() => {
+                const hours = sDuration === 'full' ? 8 : 4
+                const total = sWorkers * parseFloat(sRate) * hours
+                return Number.isFinite(total) ? (
+                  <div className="font-mono text-[10px] text-muted">
+                    Total: <span className="text-amber font-bold">{sWorkers} × {sRate} DH/h × {hours}h = {total.toLocaleString('fr-FR')} DH</span>
+                  </div>
+                ) : null
+              })()}
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <div className="font-mono text-[9px] text-muted uppercase tracking-[1px] mb-1">
               Notes{type === 'expense' && <span className="ml-1 text-amber normal-case">(requises — décrivez la nature)</span>}
+              {type === 'salary' && <span className="ml-1 text-amber normal-case">(décrivez le travail effectué)</span>}
             </div>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={type === 'expense' ? 3 : 2}
-              placeholder={type === 'expense' ? "Nature de la dépense (ex: Gasoil tracteur, réparation pompe…)" : "Notes complémentaires (optionnel)"}
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={type === 'expense' || type === 'salary' ? 3 : 2}
+              placeholder={type === 'expense' ? "Nature de la dépense (ex: Gasoil tracteur, réparation pompe…)" : type === 'salary' ? "Travail effectué (ex: Désherbage parcelle nord, préparation du sol…)" : "Notes complémentaires (optionnel)"}
               className="w-full font-mono text-xs bg-bg border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted resize-none" />
           </div>
 
