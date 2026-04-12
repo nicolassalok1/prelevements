@@ -174,10 +174,9 @@ export interface SerreBatch {
   seedCount: number          // nb total de graines
   stage: BatchStage
   weeksToTransplant: number  // semaines avant transplantation
-  temperature?: number       // °C
-  humidity?: number          // %
+  targetTemp?: number        // température cible °C
+  targetHumidity?: number    // humidité cible %
   targetChampId?: number     // champ de destination
-  targetParcelleId?: number  // parcelle de destination
   notes?: string
 }
 
@@ -188,6 +187,14 @@ export interface SerrePlaque {
   cols: number               // nb colonnes (ex: 12)
   filledCount: number        // nb d'alvéoles remplies (pas de tableau boolean)
   batchId: number            // batch lié (obligatoire)
+}
+
+export interface ClimateMeasure {
+  id: number
+  date: string               // ISO datetime
+  temperature?: number       // °C
+  humidity?: number          // %
+  notes?: string
 }
 
 // ── Parcelles (Fields) ──
@@ -210,6 +217,7 @@ export interface Field {
   champId?: number            // ID du champ parent (undefined = parcelle libre)
   batches?: SerreBatch[]      // batches germination (serre uniquement)
   plaques?: SerrePlaque[]     // plaques alvéolées (serre uniquement)
+  climateMeasures?: ClimateMeasure[]  // historique T°/Hygro (serre uniquement)
   // Leaflet layers (runtime only)
   layer?: L.Polygon
   labelMarker?: L.Marker
@@ -345,7 +353,7 @@ export interface AppState {
   addField: (field: Field) => void
   removeField: (id: number) => void
   selectField: (id: number | null) => void
-  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'color' | 'culture' | 'relief' | 'notes' | 'batches' | 'plaques'>>) => void
+  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'color' | 'culture' | 'relief' | 'notes' | 'batches' | 'plaques' | 'climateMeasures'>>) => void
   setFieldPoints: (fieldId: number, points: SamplingPoint[], markers: L.Marker[]) => void
   removePoint: (fieldId: number, pointIndex: number) => void
   archiveField: (id: number, reassignments?: { activityId: number; targetFieldIds: number[] }[]) => void

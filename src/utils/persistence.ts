@@ -66,6 +66,7 @@ export interface PersistedField {
   champId?: number
   batches?: any[]
   plaques?: any[]
+  climateMeasures?: any[]
 }
 
 export interface PersistedChamp {
@@ -131,6 +132,7 @@ export function buildPersistedData(state: {
     champId?: number
     batches?: any[]
     plaques?: any[]
+    climateMeasures?: any[]
   }>
   fieldIdCounter: number
   champs: Champ[]
@@ -168,6 +170,7 @@ export function buildPersistedData(state: {
       champId: f.champId,
       batches: f.batches,
       plaques: f.plaques,
+      climateMeasures: f.climateMeasures,
     })),
     fieldIdCounter: state.fieldIdCounter,
     champs: state.champs.map((c) => ({
