@@ -131,7 +131,7 @@ function ChampCard({ champ }: { champ: Champ }) {
     useAppStore.getState().updateChamp(champ.id, { name })
     if (champ.labelMarker) {
       champ.labelMarker.setIcon(L.divIcon({
-        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px">${name}</div>`,
+        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px;text-transform:uppercase">${name}</div>`,
         iconSize: [0, 0], className: '',
       }))
     }
