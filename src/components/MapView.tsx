@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet-draw'
 import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
-import { calcArea, calcPerimeter, isInsidePolygon, computeChampOutlineMulti } from '../utils/geometry'
+import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromCloud, loadFromStorage, setCurrentUserId } from '../utils/persistence'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import { useAuth } from '../contexts/AuthContext'
@@ -530,6 +530,45 @@ function createPointIcon(color: string, label: string) {
  * Create or update the Leaflet layer for a champ on the map.
  * Uses customOutline if set, otherwise auto-computes convex hull from parcelles.
  */
+/**
+ * Shift a hex color's hue slightly for visual differentiation.
+ * `offset` is a small number (e.g. 0, 1, 2…) that produces a unique tint.
+ */
+function shiftColor(hex: string, offset: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  // Convert to HSL
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
+  let h = 0, s = 0
+  const l = (max + min) / 2
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
+    else if (max === gn) h = ((bn - rn) / d + 2) / 6
+    else h = ((rn - gn) / d + 4) / 6
+  }
+  // Shift hue and lightness slightly per offset
+  const newH = (h + offset * 0.06) % 1
+  const newL = Math.max(0.25, Math.min(0.75, l + (offset % 2 === 0 ? 0.05 : -0.05) * (offset > 0 ? 1 : 0)))
+  // HSL → RGB
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1
+    if (t < 1 / 6) return p + (q - p) * 6 * t
+    if (t < 1 / 2) return q
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+    return p
+  }
+  const q2 = newL < 0.5 ? newL * (1 + s) : newL + s - newL * s
+  const p2 = 2 * newL - q2
+  const r2 = Math.round(hue2rgb(p2, q2, newH + 1 / 3) * 255)
+  const g2 = Math.round(hue2rgb(p2, q2, newH) * 255)
+  const b2 = Math.round(hue2rgb(p2, q2, newH - 1 / 3) * 255)
+  return `#${r2.toString(16).padStart(2, '0')}${g2.toString(16).padStart(2, '0')}${b2.toString(16).padStart(2, '0')}`
+}
+
 export function renderChampOnMap(champId: number) {
   const map = globalMap
   if (!map) return
@@ -537,6 +576,7 @@ export function renderChampOnMap(champId: number) {
   const champ = store.champs.find((c) => c.id === champId)
   if (!champ) return
 
+  // Remove old champ outline layer if any
   champ.layer?.remove()
   champ.labelMarker?.remove()
 
@@ -546,30 +586,35 @@ export function renderChampOnMap(champId: number) {
     return
   }
 
-  // Support disjoint parcelles: multi-polygon when parcelles don't touch
-  const outlines = champ.customOutline
-    ? [champ.customOutline]
-    : computeChampOutlineMulti(parcelles.map((p) => p.latlngs))
-  if (outlines.length === 0 || outlines.every((o) => o.length < 3)) return
+  // Recolor each parcelle with a variant of the champ color
+  parcelles.forEach((f, i) => {
+    const variant = shiftColor(champ.color, i)
+    store.updateField(f.id, { color: variant })
+    if (f.layer) {
+      f.layer.setStyle({ color: variant, fillColor: variant, weight: 2, fillOpacity: 0.18 })
+    }
+    if (f.labelMarker) {
+      f.labelMarker.setIcon(L.divIcon({
+        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:${variant};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap">${f.name}</div>`,
+        iconSize: [0, 0], className: '',
+      }))
+    }
+  })
 
-  const multiLatLngs = outlines
-    .filter((o) => o.length >= 3)
-    .map((o) => o.map((ll) => L.latLng(ll.lat, ll.lng)))
-  const layer = L.polygon(multiLatLngs, {
-    color: champ.color, weight: 3, fillColor: champ.color, fillOpacity: 0.04, dashArray: '10 6',
-  }).addTo(map)
+  // Place champ label at center of all parcelles bounds
+  const allLatLngs = parcelles.flatMap((f) => f.latlngs.map((ll) => L.latLng(ll.lat, ll.lng)))
+  const bounds = L.latLngBounds(allLatLngs)
+  const center = bounds.getCenter()
 
-  layer.on('click', () => { useAppStore.getState().selectChamp(champId) })
-
-  const center = layer.getBounds().getCenter()
   const labelMarker = L.marker(center, {
     icon: L.divIcon({
-      html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px">${champ.name}</div>`,
+      html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px;text-transform:uppercase">${champ.name}</div>`,
       iconSize: [0, 0], className: '',
     }),
   }).addTo(map)
 
-  store.setChampLayer(champId, layer, labelMarker)
+  // No champ outline polygon — parcelles themselves show the champ
+  store.setChampLayer(champId, undefined as unknown as L.Polygon, labelMarker)
 }
 
 // ── Restore persisted data ──
@@ -674,44 +719,23 @@ async function restorePersistedData(map: L.Map, userId?: string) {
     }
   }
 
-  // Restore champs
+  // Restore champs — no outline polygon, just register and recolor parcelles
   if (saved.champs && saved.champs.length > 0) {
     saved.champs.forEach((sc) => {
-      const parcelles = (useAppStore.getState().fields).filter((f) => sc.parcelleIds.includes(f.id) && !f.archived)
-      const outlines = sc.customOutline
-        ? [sc.customOutline]
-        : (parcelles.length >= 1 ? computeChampOutlineMulti(parcelles.map((p) => p.latlngs)) : [])
-
-      let layer: L.Polygon | undefined
-      let labelMarker: L.Marker | undefined
-
-      if (outlines.length > 0 && outlines.some((o) => o.length >= 3)) {
-        const multiLatLngs = outlines.filter((o) => o.length >= 3).map((o) => o.map((ll) => L.latLng(ll.lat, ll.lng)))
-        layer = L.polygon(multiLatLngs, {
-          color: sc.color, weight: 3, fillColor: sc.color, fillOpacity: 0.04, dashArray: '10 6',
-        }).addTo(map)
-        layer.on('click', () => { useAppStore.getState().selectChamp(sc.id) })
-
-        const center = layer.getBounds().getCenter()
-        labelMarker = L.marker(center, {
-          icon: L.divIcon({
-            html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;color:${sc.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px">${sc.name}</div>`,
-            iconSize: [0, 0], className: '',
-          }),
-        }).addTo(map)
-      }
-
       const champ: Champ = {
         id: sc.id, name: sc.name, color: sc.color,
         parcelleIds: sc.parcelleIds,
         customOutline: sc.customOutline,
-        layer, labelMarker,
       }
       store.addChamp(champ)
     })
     if (saved.champIdCounter) {
       useAppStore.setState({ champIdCounter: saved.champIdCounter })
     }
+    // Recolor parcelles per champ after all fields and champs are loaded
+    saved.champs.forEach((sc) => {
+      renderChampOnMap(sc.id)
+    })
   }
 
   // Restore employees, strains, logs

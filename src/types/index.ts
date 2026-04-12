@@ -293,7 +293,7 @@ export interface AppState {
   addField: (field: Field) => void
   removeField: (id: number) => void
   selectField: (id: number | null) => void
-  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'culture' | 'relief' | 'notes'>>) => void
+  updateField: (id: number, updates: Partial<Pick<Field, 'name' | 'color' | 'culture' | 'relief' | 'notes'>>) => void
   setFieldPoints: (fieldId: number, points: SamplingPoint[], markers: L.Marker[]) => void
   removePoint: (fieldId: number, pointIndex: number) => void
   archiveField: (id: number, reassignments?: { activityId: number; targetFieldIds: number[] }[]) => void
