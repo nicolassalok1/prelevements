@@ -16,19 +16,22 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // When Supabase is not configured, skip auth entirely — local-only mode
+  const localOnly = !supabase
+
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!localOnly)
 
   useEffect(() => {
-    // Get initial session
+    if (!supabase) return
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    if (!supabase) return { error: 'Auth non configurée' }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -48,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) return { error: 'Auth non configurée' }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message ?? null }
   }
@@ -55,10 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setCurrentUserId(null)
     clearStorage()
-    await supabase.auth.signOut()
+    if (supabase) await supabase.auth.signOut()
   }
 
   const resetPassword = async (email: string) => {
+    if (!supabase) return { error: 'Auth non configurée' }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })

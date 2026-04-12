@@ -29,7 +29,9 @@ export default function App() {
     )
   }
 
-  if (!user) return <AuthPage />
+  // Skip auth gate when Supabase is not configured (local-only mode)
+  const localOnly = !import.meta.env.VITE_SUPABASE_URL
+  if (!localOnly && !user) return <AuthPage />
 
   // Layout:
   //   ┌───────────────────────────────────────────────┐

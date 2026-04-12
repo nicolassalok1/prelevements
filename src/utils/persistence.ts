@@ -17,12 +17,13 @@ export function saveToCloud(data: PersistedData): void {
   // Always keep localStorage as fast cache
   saveToStorage(data)
 
-  if (!_currentUserId) return
+  if (!_currentUserId || !supabase) return
 
+  const sb = supabase
   if (_saveTimeout) clearTimeout(_saveTimeout)
   _saveTimeout = setTimeout(async () => {
     try {
-      await supabase
+      await sb
         .from('user_data')
         .upsert({ user_id: _currentUserId, data }, { onConflict: 'user_id' })
     } catch { /* silent — localStorage is the fallback */ }
@@ -31,6 +32,7 @@ export function saveToCloud(data: PersistedData): void {
 
 /** Load from Supabase. Returns null for new users (= blank app). */
 export async function loadFromCloud(userId: string): Promise<PersistedData | null> {
+  if (!supabase) return null
   try {
     const { data, error } = await supabase
       .from('user_data')
