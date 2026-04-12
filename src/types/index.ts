@@ -169,11 +169,15 @@ export type BatchStage = 'semis' | 'germe' | 'pousse' | 'pret'
 export interface SerreBatch {
   id: number
   name: string
+  strain: string             // nom de la variété/strain
   plantingDate: string       // ISO date de mise en terre
-  seedCount: number
+  seedCount: number          // nb total de graines
   stage: BatchStage
+  weeksToTransplant: number  // semaines avant transplantation
   temperature?: number       // °C
   humidity?: number          // %
+  targetChampId?: number     // champ de destination
+  targetParcelleId?: number  // parcelle de destination
   notes?: string
 }
 
@@ -182,8 +186,8 @@ export interface SerrePlaque {
   name: string
   rows: number               // nb lignes (ex: 6)
   cols: number               // nb colonnes (ex: 12)
-  cells: boolean[]           // true = graine, false = alvéole vide (length = rows*cols)
-  batchId?: number           // batch lié
+  filledCount: number        // nb d'alvéoles remplies (pas de tableau boolean)
+  batchId: number            // batch lié (obligatoire)
 }
 
 // ── Parcelles (Fields) ──

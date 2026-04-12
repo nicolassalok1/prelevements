@@ -669,13 +669,14 @@ function ReliefTab() {
 // ═══════════════════════════════════════
 
 const STAGE_LABELS: Record<BatchStage, string> = { semis: 'Semis', germe: 'Germé', pousse: 'Pousse', pret: 'Prêt' }
-const STAGE_COLOR: Record<BatchStage, string> = { semis: 'text-muted', germe: 'text-cyan', pousse: 'text-amber', pret: 'text-olive-lit' }
+const STAGE_COLOR: Record<BatchStage, string> = { semis: 'text-muted border-border', germe: 'text-cyan border-cyan/40', pousse: 'text-amber border-amber/40', pret: 'text-olive-lit border-olive-lit/40' }
+const STAGE_BG: Record<BatchStage, string> = { semis: 'bg-border/40', germe: 'bg-cyan/20', pousse: 'bg-amber/20', pret: 'bg-olive/20' }
 
 const PLAQUE_PRESETS = [
+  { label: '24 (4×6)', rows: 4, cols: 6 },
+  { label: '50 (5×10)', rows: 5, cols: 10 },
   { label: '72 (6×12)', rows: 6, cols: 12 },
   { label: '128 (8×16)', rows: 8, cols: 16 },
-  { label: '50 (5×10)', rows: 5, cols: 10 },
-  { label: '24 (4×6)', rows: 4, cols: 6 },
 ]
 
 function BatchesTab() {
@@ -683,19 +684,29 @@ function BatchesTab() {
   const field = useAppStore((s) => s.fields.find((f) => f.id === fieldId))!
   const updateField = useAppStore((s) => s.updateField)
   const toast = useAppStore((s) => s.toast)
+  const allChamps = useAppStore((s) => s.champs)
+  const allFields = useAppStore((s) => s.fields).filter((f) => !f.archived)
+  const strains = useAppStore((s) => s.strains)
   const batches = field.batches || []
   const plaques = field.plaques || []
   const archived = !!field.archived
+  const targetChamps = allChamps.filter((c) => c.type === 'champ')
 
   // Batch form
   const [adding, setAdding] = useState(false)
-  const [name, setName] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [seeds, setSeeds] = useState(50)
-  const [temp, setTemp] = useState('')
-  const [hum, setHum] = useState('')
+  const [bName, setBName] = useState('')
+  const [bStrain, setBStrain] = useState('')
+  const [bDate, setBDate] = useState(new Date().toISOString().slice(0, 10))
+  const [bSeeds, setBSeeds] = useState(50)
+  const [bWeeks, setBWeeks] = useState(3)
+  const [bPlaqueRows, setBPlaqueRows] = useState(6)
+  const [bPlaqueCols, setBPlaqueCols] = useState(12)
+  const [bPlaqueCount, setBPlaqueCount] = useState(1)
+  const [bTemp, setBTemp] = useState('')
+  const [bHum, setBHum] = useState('')
+  const [bTarget, setBTarget] = useState<number | ''>('')
 
-  // Plaque form (per batch)
+  // Plaque add for existing batch
   const [addingPlaqueFor, setAddingPlaqueFor] = useState<number | null>(null)
   const [pName, setPName] = useState('')
   const [pRows, setPRows] = useState(6)
@@ -705,16 +716,30 @@ function BatchesTab() {
   const nextPlaqueId = plaques.reduce((m, p) => Math.max(m, p.id), 0) + 1
 
   const handleAddBatch = () => {
-    if (!name.trim()) { toast('⚠ Nom du batch requis', true); return }
-    const batch = {
-      id: nextBatchId, name: name.trim(), plantingDate: date, seedCount: seeds,
-      stage: 'semis' as BatchStage,
-      temperature: temp ? parseFloat(temp) : undefined,
-      humidity: hum ? parseFloat(hum) : undefined,
+    if (!bName.trim()) { toast('⚠ Nom du batch requis', true); return }
+    if (!bStrain.trim()) { toast('⚠ Strain requise', true); return }
+    const batch: typeof batches[0] = {
+      id: nextBatchId, name: bName.trim(), strain: bStrain.trim(),
+      plantingDate: bDate, seedCount: bSeeds, stage: 'semis',
+      weeksToTransplant: bWeeks,
+      temperature: bTemp ? parseFloat(bTemp) : undefined,
+      humidity: bHum ? parseFloat(bHum) : undefined,
+      targetChampId: bTarget ? Number(bTarget) : undefined,
     }
-    updateField(fieldId, { batches: [...batches, batch] })
-    toast(`✓ Batch "${name.trim()}" ajouté`)
-    setName(''); setSeeds(50); setTemp(''); setHum(''); setAdding(false)
+    // Auto-create plaques
+    const newPlaques: typeof plaques = []
+    const total = bPlaqueRows * bPlaqueCols
+    for (let i = 0; i < bPlaqueCount; i++) {
+      newPlaques.push({
+        id: nextPlaqueId + i, name: `${bName.trim()} — P${i + 1}`,
+        rows: bPlaqueRows, cols: bPlaqueCols,
+        filledCount: Math.min(bSeeds - (i * total), total),
+        batchId: nextBatchId,
+      })
+    }
+    updateField(fieldId, { batches: [...batches, batch], plaques: [...plaques, ...newPlaques] })
+    toast(`✓ Batch "${bName.trim()}" + ${bPlaqueCount} plaque(s) créé`)
+    setBName(''); setBStrain(''); setBSeeds(50); setBWeeks(3); setBTemp(''); setBHum(''); setBTarget(''); setBPlaqueCount(1); setAdding(false)
   }
 
   const updateBatch = (id: number, patch: Partial<typeof batches[0]>) => {
@@ -723,233 +748,289 @@ function BatchesTab() {
 
   const removeBatch = (id: number) => {
     if (!confirm('Supprimer ce batch et ses plaques ?')) return
-    updateField(fieldId, {
-      batches: batches.filter((b) => b.id !== id),
-      plaques: plaques.filter((p) => p.batchId !== id),
-    })
+    updateField(fieldId, { batches: batches.filter((b) => b.id !== id), plaques: plaques.filter((p) => p.batchId !== id) })
     toast('Batch supprimé')
   }
 
   const handleAddPlaque = (batchId: number) => {
-    if (!pName.trim()) { toast('⚠ Nom de la plaque requis', true); return }
-    const plaque = {
-      id: nextPlaqueId, name: pName.trim(), rows: pRows, cols: pCols,
-      cells: new Array(pRows * pCols).fill(true),
-      batchId,
-    }
+    if (!pName.trim()) { toast('⚠ Nom requis', true); return }
+    const plaque: typeof plaques[0] = { id: nextPlaqueId, name: pName.trim(), rows: pRows, cols: pCols, filledCount: pRows * pCols, batchId }
     updateField(fieldId, { plaques: [...plaques, plaque] })
-    toast(`✓ Plaque "${pName.trim()}" créée (${pRows}×${pCols})`)
-    setPName(''); setPRows(6); setPCols(12); setAddingPlaqueFor(null)
+    toast(`✓ Plaque créée`)
+    setPName(''); setAddingPlaqueFor(null)
   }
 
-  const toggleCell = (plaqueId: number, index: number) => {
-    if (archived) return
-    updateField(fieldId, {
-      plaques: plaques.map((p) => {
-        if (p.id !== plaqueId) return p
-        const cells = [...p.cells]
-        cells[index] = !cells[index]
-        return { ...p, cells }
-      }),
-    })
+  const updatePlaque = (id: number, patch: Partial<typeof plaques[0]>) => {
+    updateField(fieldId, { plaques: plaques.map((p) => p.id === id ? { ...p, ...patch } : p) })
   }
 
   const removePlaque = (id: number) => {
     if (!confirm('Supprimer cette plaque ?')) return
     updateField(fieldId, { plaques: plaques.filter((p) => p.id !== id) })
-    toast('Plaque supprimée')
   }
 
-  const fillAll = (plaqueId: number, value: boolean) => {
-    updateField(fieldId, {
-      plaques: plaques.map((p) => p.id === plaqueId ? { ...p, cells: p.cells.map(() => value) } : p),
-    })
+  // Transplant date computation
+  const transplantDate = (b: typeof batches[0]) => {
+    const d = new Date(b.plantingDate)
+    d.setDate(d.getDate() + b.weeksToTransplant * 7)
+    return d
+  }
+  const daysLeft = (b: typeof batches[0]) => {
+    const diff = transplantDate(b).getTime() - Date.now()
+    return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-mono text-sm text-olive-lit tracking-[2px] uppercase">Germination</h3>
-        {!archived && <button onClick={() => setAdding(!adding)} className="btn-sm btn-active text-[10px]">+ Batch</button>}
+        {!archived && <button onClick={() => setAdding(!adding)} className="btn-sm btn-active text-[10px]">+ Nouveau batch</button>}
       </div>
-      <p className="text-xs text-muted">Créez un batch de graines puis ajoutez-y des plaques alvéolées.</p>
 
-      {/* New batch form */}
+      {/* ── New batch form ── */}
       {adding && (
-        <div className="bg-bg border border-border p-3 space-y-2">
+        <div className="bg-bg border border-olive-lit/40 p-3 space-y-2">
           <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1px]">Nouveau batch</div>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du batch (ex: Lot A — OG Kush)"
-            className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Date mise en terre</div>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Nom du batch</div>
+              <input type="text" value={bName} onChange={(e) => setBName(e.target.value)} placeholder="ex: Lot A"
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+            </div>
+            <div>
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Strain / Variété</div>
+              {strains.length > 0 ? (
+                <select value={bStrain} onChange={(e) => setBStrain(e.target.value)}
+                  className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
+                  <option value="">— Choisir —</option>
+                  {strains.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="__custom">Saisie libre...</option>
+                </select>
+              ) : (
+                <input type="text" value={bStrain} onChange={(e) => setBStrain(e.target.value)} placeholder="ex: OG Kush"
+                  className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+              )}
+            </div>
+          </div>
+          {bStrain === '__custom' && (
+            <input type="text" value="" onChange={(e) => setBStrain(e.target.value)} placeholder="Nom de la strain" autoFocus
+              className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Date de semis</div>
+              <input type="date" value={bDate} onChange={(e) => setBDate(e.target.value)}
                 className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
             </div>
             <div>
               <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Nb. graines</div>
-              <input type="number" min={1} value={seeds} onChange={(e) => setSeeds(parseInt(e.target.value) || 1)}
+              <input type="number" min={1} value={bSeeds} onChange={(e) => setBSeeds(parseInt(e.target.value) || 1)}
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
+            </div>
+            <div>
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Semaines avant transfert</div>
+              <input type="number" min={1} max={52} value={bWeeks} onChange={(e) => setBWeeks(parseInt(e.target.value) || 3)}
                 className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit" />
             </div>
           </div>
+
+          <div className="border-t border-border/40 pt-2">
+            <div className="font-mono text-[8px] text-muted uppercase mb-1">Plaques alvéolées</div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {PLAQUE_PRESETS.map((pr) => (
+                <button key={pr.label} onClick={() => { setBPlaqueRows(pr.rows); setBPlaqueCols(pr.cols) }}
+                  className={`font-mono text-[9px] px-1.5 py-0.5 border cursor-pointer transition-all ${bPlaqueRows === pr.rows && bPlaqueCols === pr.cols ? 'bg-olive border-olive-lit text-white' : 'bg-panel border-border text-muted hover:text-text'}`}>
+                  {pr.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Lignes</div>
+                <input type="number" min={1} max={30} value={bPlaqueRows} onChange={(e) => setBPlaqueRows(parseInt(e.target.value) || 1)}
+                  className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+              </div>
+              <div>
+                <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Colonnes</div>
+                <input type="number" min={1} max={30} value={bPlaqueCols} onChange={(e) => setBPlaqueCols(parseInt(e.target.value) || 1)}
+                  className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+              </div>
+              <div>
+                <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Nb. plaques</div>
+                <input type="number" min={1} max={100} value={bPlaqueCount} onChange={(e) => setBPlaqueCount(parseInt(e.target.value) || 1)}
+                  className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+              </div>
+            </div>
+            <div className="font-mono text-[9px] text-muted mt-1">{bPlaqueCount} × {bPlaqueRows * bPlaqueCols} = {bPlaqueCount * bPlaqueRows * bPlaqueCols} alvéoles</div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Température (°C)</div>
-              <input type="number" step="0.5" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="—"
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Temp. (°C)</div>
+              <input type="number" step="0.5" value={bTemp} onChange={(e) => setBTemp(e.target.value)} placeholder="—"
                 className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
             </div>
             <div>
               <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Humidité (%)</div>
-              <input type="number" min={0} max={100} value={hum} onChange={(e) => setHum(e.target.value)} placeholder="—"
+              <input type="number" min={0} max={100} value={bHum} onChange={(e) => setBHum(e.target.value)} placeholder="—"
                 className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
             </div>
           </div>
-          <div className="flex gap-2">
-            <button className="flex-1 btn-active text-[10px]" onClick={handleAddBatch}>✓ Ajouter</button>
+
+          {targetChamps.length > 0 && (
+            <div>
+              <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Champ de destination (optionnel)</div>
+              <select value={bTarget} onChange={(e) => setBTarget(e.target.value ? parseInt(e.target.value) : '')}
+                className="w-full font-mono text-xs bg-panel border border-border text-text py-1.5 px-2 outline-none focus:border-olive-lit">
+                <option value="">— À définir plus tard —</option>
+                {targetChamps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button className="flex-1 btn-active text-[10px]" onClick={handleAddBatch}>✓ Créer le batch</button>
             <button className="btn-danger text-[10px]" onClick={() => setAdding(false)}>Annuler</button>
           </div>
         </div>
       )}
 
       {batches.length === 0 && !adding && (
-        <div className="text-center text-muted text-xs py-6">Aucun batch enregistré.</div>
+        <div className="text-center text-muted text-xs py-6">Aucun batch. Créez-en un pour démarrer la germination.</div>
       )}
 
-      {/* Batch cards with their plaques */}
+      {/* ── Batch cards ── */}
       {batches.map((b) => {
-        const batchPlaques = plaques.filter((p) => p.batchId === b.id)
-        const totalSeeds = batchPlaques.reduce((s, p) => s + p.cells.filter(Boolean).length, 0)
+        const bPlaques = plaques.filter((p) => p.batchId === b.id)
+        const totalAlveoles = bPlaques.reduce((s, p) => s + p.rows * p.cols, 0)
+        const totalFilled = bPlaques.reduce((s, p) => s + p.filledCount, 0)
+        const fillPct = totalAlveoles > 0 ? Math.round((totalFilled / totalAlveoles) * 100) : 0
+        const dl = daysLeft(b)
+        const targetChamp = b.targetChampId ? allChamps.find((c) => c.id === b.targetChampId) : null
 
         return (
           <div key={b.id} className="border border-border">
-            {/* Batch header */}
+            {/* Header */}
             <div className="bg-bg p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-text font-bold flex-1 truncate">{b.name}</span>
-                <span className={`font-mono text-[9px] px-1.5 py-px border ${STAGE_COLOR[b.stage]} border-current/40`}>{STAGE_LABELS[b.stage]}</span>
+                <span className={`font-mono text-[9px] px-1.5 py-px border ${STAGE_COLOR[b.stage]}`}>{STAGE_LABELS[b.stage]}</span>
                 {!archived && (
                   <button onClick={() => removeBatch(b.id)} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-xs">✕</button>
                 )}
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div><div className="text-[8px] text-muted uppercase">Graines</div><div className="font-mono text-sm text-olive-lit">{b.seedCount}</div></div>
-                <div><div className="text-[8px] text-muted uppercase">Mis en terre</div><div className="font-mono text-[10px] text-text">{new Date(b.plantingDate).toLocaleDateString('fr-FR')}</div></div>
-                <div><div className="text-[8px] text-muted uppercase">Temp.</div><div className="font-mono text-sm text-cyan">{b.temperature != null ? `${b.temperature}°` : '—'}</div></div>
-                <div><div className="text-[8px] text-muted uppercase">Humid.</div><div className="font-mono text-sm text-cyan">{b.humidity != null ? `${b.humidity}%` : '—'}</div></div>
+
+              <div className="font-mono text-[10px] text-amber">{b.strain}</div>
+
+              <div className="grid grid-cols-5 gap-1 text-center">
+                <div><div className="text-[7px] text-muted uppercase">Graines</div><div className="font-mono text-sm text-olive-lit">{b.seedCount}</div></div>
+                <div><div className="text-[7px] text-muted uppercase">Semis</div><div className="font-mono text-[9px] text-text">{new Date(b.plantingDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div></div>
+                <div><div className="text-[7px] text-muted uppercase">Temp.</div><div className="font-mono text-sm text-cyan">{b.temperature != null ? `${b.temperature}°` : '—'}</div></div>
+                <div><div className="text-[7px] text-muted uppercase">Humid.</div><div className="font-mono text-sm text-cyan">{b.humidity != null ? `${b.humidity}%` : '—'}</div></div>
+                <div>
+                  <div className="text-[7px] text-muted uppercase">Transfert</div>
+                  <div className={`font-mono text-sm ${dl <= 0 ? 'text-red font-bold' : dl <= 7 ? 'text-amber' : 'text-muted'}`}>
+                    {dl <= 0 ? 'Prêt !' : `${dl}j`}
+                  </div>
+                </div>
               </div>
-              {!archived && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Stade</div>
-                    <select value={b.stage} onChange={(e) => updateBatch(b.id, { stage: e.target.value as BatchStage })}
-                      className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit">
-                      <option value="semis">Semis</option><option value="germe">Germé</option>
-                      <option value="pousse">Pousse</option><option value="pret">Prêt</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    <div>
-                      <div className="font-mono text-[8px] text-muted uppercase mb-0.5">°C</div>
-                      <input type="number" step="0.5" value={b.temperature ?? ''} placeholder="—"
-                        onChange={(e) => updateBatch(b.id, { temperature: e.target.value ? parseFloat(e.target.value) : undefined })}
-                        className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-                    </div>
-                    <div>
-                      <div className="font-mono text-[8px] text-muted uppercase mb-0.5">%H</div>
-                      <input type="number" min={0} max={100} value={b.humidity ?? ''} placeholder="—"
-                        onChange={(e) => updateBatch(b.id, { humidity: e.target.value ? parseFloat(e.target.value) : undefined })}
-                        className="w-full font-mono text-[10px] bg-panel border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit placeholder:text-muted" />
-                    </div>
-                  </div>
+
+              {targetChamp && (
+                <div className="font-mono text-[9px] text-muted">
+                  Destination : <span className="text-olive-lit">{targetChamp.name}</span>
                 </div>
               )}
-              {batchPlaques.length > 0 && (
-                <div className="font-mono text-[9px] text-muted border-t border-border/30 pt-1">
-                  {batchPlaques.length} plaque{batchPlaques.length > 1 ? 's' : ''} · {totalSeeds} graine{totalSeeds > 1 ? 's' : ''} en alvéoles
+
+              {/* Editable fields */}
+              {!archived && (
+                <div className="grid grid-cols-3 gap-1">
+                  <select value={b.stage} onChange={(e) => updateBatch(b.id, { stage: e.target.value as BatchStage })}
+                    className="font-mono text-[9px] bg-panel border border-border text-text py-1 px-1 outline-none focus:border-olive-lit">
+                    <option value="semis">Semis</option><option value="germe">Germé</option>
+                    <option value="pousse">Pousse</option><option value="pret">Prêt</option>
+                  </select>
+                  <input type="number" step="0.5" value={b.temperature ?? ''} placeholder="°C"
+                    onChange={(e) => updateBatch(b.id, { temperature: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    className="font-mono text-[9px] bg-panel border border-border text-text py-1 px-1 outline-none focus:border-olive-lit placeholder:text-muted" />
+                  <input type="number" min={0} max={100} value={b.humidity ?? ''} placeholder="%H"
+                    onChange={(e) => updateBatch(b.id, { humidity: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    className="font-mono text-[9px] bg-panel border border-border text-text py-1 px-1 outline-none focus:border-olive-lit placeholder:text-muted" />
                 </div>
+              )}
+              {!archived && !b.targetChampId && targetChamps.length > 0 && (
+                <select value="" onChange={(e) => updateBatch(b.id, { targetChampId: parseInt(e.target.value) || undefined })}
+                  className="w-full font-mono text-[9px] bg-panel border border-amber/40 text-amber py-1 px-1.5 outline-none focus:border-olive-lit">
+                  <option value="">+ Définir le champ de destination</option>
+                  {targetChamps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               )}
             </div>
 
-            {/* Plaques for this batch */}
-            <div className="border-t border-border">
-              {batchPlaques.map((p) => {
-                const filled = p.cells.filter(Boolean).length
-                const total = p.rows * p.cols
-                const pct = total > 0 ? Math.round((filled / total) * 100) : 0
-                const cellSize = Math.min(18, Math.max(8, Math.floor(320 / p.cols)))
-                return (
-                  <div key={p.id} className="p-3 border-b border-border/40 last:border-b-0 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-text font-semibold flex-1 truncate">{p.name}</span>
-                      <span className="font-mono text-[9px] text-muted">{p.rows}×{p.cols}</span>
-                      <span className={`font-mono text-[9px] px-1.5 py-px border ${pct === 100 ? 'text-olive-lit border-olive-lit/40' : pct > 0 ? 'text-amber border-amber/40' : 'text-muted border-border'}`}>
-                        {filled}/{total}
-                      </span>
-                      {!archived && (
-                        <button onClick={() => removePlaque(p.id)} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-[10px]">✕</button>
-                      )}
-                    </div>
-                    <div className="flex justify-center overflow-x-auto py-0.5">
-                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${p.cols}, ${cellSize}px)`, gap: '2px' }}>
-                        {p.cells.map((on, i) => (
-                          <button key={i} onClick={() => toggleCell(p.id, i)} className="transition-all border-0 p-0"
-                            style={{ width: cellSize, height: cellSize, borderRadius: '50%',
-                              background: on ? 'var(--color-olive-lit)' : 'var(--color-border)',
-                              opacity: on ? 1 : 0.4, cursor: archived ? 'default' : 'pointer' }}
-                            title={`${Math.floor(i / p.cols) + 1}-${(i % p.cols) + 1} : ${on ? 'Graine' : 'Vide'}`} />
-                        ))}
-                      </div>
-                    </div>
-                    {!archived && (
-                      <div className="flex gap-1 justify-center">
-                        <button onClick={() => fillAll(p.id, true)} className="font-mono text-[8px] px-2 py-0.5 border border-olive-lit/40 text-olive-lit bg-transparent cursor-pointer hover:bg-olive/20">Tout remplir</button>
-                        <button onClick={() => fillAll(p.id, false)} className="font-mono text-[8px] px-2 py-0.5 border border-border text-muted bg-transparent cursor-pointer hover:bg-panel">Tout vider</button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            {/* ── Plaques overview ── */}
+            <div className="border-t border-border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="font-mono text-[8px] text-muted uppercase tracking-[1px] flex-1">
+                  Plaques ({bPlaques.length}) · {totalFilled}/{totalAlveoles} alvéoles ({fillPct}%)
+                </div>
+                {!archived && (
+                  <button onClick={() => { setAddingPlaqueFor(b.id); setPName(`${b.name} — P${bPlaques.length + 1}`); setPRows(bPlaques[0]?.rows || 6); setPCols(bPlaques[0]?.cols || 12) }}
+                    className="font-mono text-[8px] px-2 py-0.5 border border-olive-lit/40 text-olive-lit bg-transparent cursor-pointer hover:bg-olive/20">+ Plaque</button>
+                )}
+              </div>
 
-              {/* Add plaque button / form */}
-              {!archived && (
-                <div className="p-2">
-                  {addingPlaqueFor === b.id ? (
-                    <div className="bg-panel border border-border p-2 space-y-2">
-                      <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1px]">Nouvelle plaque</div>
-                      <input type="text" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Nom (ex: Plaque A1)"
-                        className="w-full font-mono text-[10px] bg-bg border border-border text-text py-1 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
-                      <div className="flex flex-wrap gap-1">
-                        {PLAQUE_PRESETS.map((pr) => (
-                          <button key={pr.label} onClick={() => { setPRows(pr.rows); setPCols(pr.cols) }}
-                            className={`font-mono text-[9px] px-1.5 py-0.5 border cursor-pointer transition-all ${pRows === pr.rows && pCols === pr.cols ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted hover:text-text'}`}>
-                            {pr.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Lignes</div>
-                          <input type="number" min={1} max={20} value={pRows} onChange={(e) => setPRows(parseInt(e.target.value) || 1)}
-                            className="w-full font-mono text-[10px] bg-bg border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+              {/* Progress bar */}
+              {totalAlveoles > 0 && (
+                <div className="h-2 bg-border/40 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all rounded-full ${STAGE_BG[b.stage]}`} style={{ width: `${fillPct}%` }} />
+                </div>
+              )}
+
+              {/* Plaque grid — compact cards */}
+              {bPlaques.length > 0 && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {bPlaques.map((p) => {
+                    const total = p.rows * p.cols
+                    const pPct = total > 0 ? Math.round((p.filledCount / total) * 100) : 0
+                    return (
+                      <div key={p.id} className="bg-panel border border-border/60 p-2 space-y-1">
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-[9px] text-text font-semibold flex-1 truncate">{p.name}</span>
+                          {!archived && (
+                            <button onClick={() => removePlaque(p.id)} className="text-muted hover:text-red bg-transparent border-none cursor-pointer text-[9px]">✕</button>
+                          )}
                         </div>
-                        <div>
-                          <div className="font-mono text-[8px] text-muted uppercase mb-0.5">Colonnes</div>
-                          <input type="number" min={1} max={30} value={pCols} onChange={(e) => setPCols(parseInt(e.target.value) || 1)}
-                            className="w-full font-mono text-[10px] bg-bg border border-border text-text py-1 px-1.5 outline-none focus:border-olive-lit" />
+                        <div className="font-mono text-[8px] text-muted">{p.rows}×{p.cols} · {p.filledCount}/{total}</div>
+                        <div className="h-1.5 bg-border/40 rounded-full overflow-hidden">
+                          <div className="h-full bg-olive-lit rounded-full transition-all" style={{ width: `${pPct}%` }} />
                         </div>
+                        {!archived && (
+                          <input type="number" min={0} max={total} value={p.filledCount}
+                            onChange={(e) => updatePlaque(p.id, { filledCount: Math.min(total, Math.max(0, parseInt(e.target.value) || 0)) })}
+                            className="w-full font-mono text-[9px] bg-bg border border-border text-text py-0.5 px-1.5 outline-none focus:border-olive-lit text-center" />
+                        )}
                       </div>
-                      <div className="font-mono text-[9px] text-muted">{pRows * pCols} alvéoles</div>
-                      <div className="flex gap-1">
-                        <button className="flex-1 btn-active text-[10px]" onClick={() => handleAddPlaque(b.id)}>✓ Créer</button>
-                        <button className="btn-danger text-[10px]" onClick={() => { setAddingPlaqueFor(null); setPName('') }}>Annuler</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => { setAddingPlaqueFor(b.id); setPName(''); setPRows(6); setPCols(12) }}
-                      className="w-full py-1.5 bg-olive/10 border border-olive-lit/30 text-olive-lit font-mono text-[9px] tracking-[1px] uppercase cursor-pointer hover:bg-olive/20 transition-all">
-                      + Ajouter une plaque
-                    </button>
-                  )}
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Add plaque form */}
+              {addingPlaqueFor === b.id && (
+                <div className="bg-panel border border-border p-2 space-y-1.5">
+                  <input type="text" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Nom"
+                    className="w-full font-mono text-[10px] bg-bg border border-border text-text py-1 px-2 outline-none focus:border-olive-lit placeholder:text-muted" />
+                  <div className="flex flex-wrap gap-1">
+                    {PLAQUE_PRESETS.map((pr) => (
+                      <button key={pr.label} onClick={() => { setPRows(pr.rows); setPCols(pr.cols) }}
+                        className={`font-mono text-[8px] px-1.5 py-0.5 border cursor-pointer transition-all ${pRows === pr.rows && pCols === pr.cols ? 'bg-olive border-olive-lit text-white' : 'bg-bg border-border text-muted'}`}>
+                        {pr.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1">
+                    <button className="flex-1 btn-active text-[9px]" onClick={() => handleAddPlaque(b.id)}>✓ Créer</button>
+                    <button className="btn-danger text-[9px]" onClick={() => setAddingPlaqueFor(null)}>✕</button>
+                  </div>
                 </div>
               )}
             </div>

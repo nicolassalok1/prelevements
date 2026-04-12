@@ -576,6 +576,7 @@ export function renderChampOnMap(champId: number) {
   const center = bounds.getCenter()
 
   const labelMarker = L.marker(center, {
+    zIndexOffset: 1000,
     icon: L.divIcon({
       html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px;text-transform:uppercase;cursor:pointer">${champ.name}</div>`,
       iconSize: [0, 0], className: '',
