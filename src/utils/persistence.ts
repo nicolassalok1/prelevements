@@ -31,14 +31,24 @@ export function saveToCloud(data: PersistedData): void {
 }
 
 /** Save to Supabase immediately (no debounce). Use for file imports before reload. */
-export async function saveToCloudImmediate(data: PersistedData): Promise<void> {
+export async function saveToCloudImmediate(data: PersistedData): Promise<{ ok: boolean; error?: string }> {
   saveToStorage(data)
-  if (!_currentUserId || !supabase) return
-  try {
-    await supabase
-      .from('user_data')
-      .upsert({ user_id: _currentUserId, data }, { onConflict: 'user_id' })
-  } catch { /* silent */ }
+  if (!supabase) return { ok: true } // local-only mode
+
+  // Get user ID from module state or from current session
+  let userId = _currentUserId
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    userId = user?.id ?? null
+  }
+  if (!userId) return { ok: false, error: 'Non connecté' }
+
+  const { error } = await supabase
+    .from('user_data')
+    .upsert({ user_id: userId, data }, { onConflict: 'user_id' })
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
 }
 
 /** Load from Supabase. Returns null for new users (= blank app). */

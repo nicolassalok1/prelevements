@@ -44,7 +44,11 @@ export function Sidebar() {
         const data = parseProjectFile(reader.result as string)
         if (!data) { store.toast('⚠ Fichier invalide', true); return }
         // Write to localStorage + cloud (immediate, no debounce), then reload.
-        await saveToCloudImmediate(data)
+        const result = await saveToCloudImmediate(data)
+        if (!result.ok) {
+          store.toast(`⚠ Erreur sauvegarde cloud: ${result.error}`, true)
+          return
+        }
         window.location.reload()
       }
       reader.onerror = () => store.toast('⚠ Impossible de lire le fichier', true)
