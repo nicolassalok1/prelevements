@@ -586,16 +586,16 @@ export function renderChampOnMap(champId: number) {
     return
   }
 
-  // Recolor each parcelle with a variant of the champ color
-  parcelles.forEach((f, i) => {
-    const variant = shiftColor(champ.color, i)
-    store.updateField(f.id, { color: variant })
+  // Recolor each parcelle with the champ color
+  const color = champ.color
+  parcelles.forEach((f) => {
+    store.updateField(f.id, { color })
     if (f.layer) {
-      f.layer.setStyle({ color: variant, fillColor: variant, weight: 2, fillOpacity: 0.18 })
+      f.layer.setStyle({ color, fillColor: color, weight: 2, fillOpacity: 0.18 })
     }
     if (f.labelMarker) {
       f.labelMarker.setIcon(L.divIcon({
-        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:${variant};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap">${f.name}</div>`,
+        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:${color};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap">${f.name}</div>`,
         iconSize: [0, 0], className: '',
       }))
     }
