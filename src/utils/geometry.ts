@@ -1,3 +1,5 @@
+import turfUnion from '@turf/union'
+import { polygon as turfPolygon, multiPolygon as turfMultiPolygon } from '@turf/helpers'
 import type { LatLng } from '../types'
 
 export function isInsidePolygon(point: LatLng, polygon: LatLng[]): boolean {
@@ -84,14 +86,48 @@ export function computeConvexHull(points: LatLng[]): LatLng[] {
 }
 
 /**
- * Compute champ outline from its parcelles' polygons (convex hull of all vertices).
+ * Compute champ outline from its parcelles' polygons.
+ * Uses Turf.js polygon union so the outline tightly follows the actual
+ * parcelle boundaries instead of producing a loose convex hull.
+ * Falls back to convex hull if the union fails for any reason.
  */
 export function computeChampOutline(parcellePolygons: LatLng[][]): LatLng[] {
-  const allPoints: LatLng[] = []
-  for (const poly of parcellePolygons) {
-    allPoints.push(...poly)
+  if (parcellePolygons.length === 0) return []
+  if (parcellePolygons.length === 1) return [...parcellePolygons[0]]
+
+  try {
+    // Convert each parcelle to a closed GeoJSON polygon ring
+    const turfPolys = parcellePolygons.map((poly) => {
+      const ring = poly.map((p) => [p.lng, p.lat] as [number, number])
+      // Close the ring if not already closed
+      if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
+        ring.push([...ring[0]] as [number, number])
+      }
+      return turfPolygon([ring])
+    })
+
+    // Iteratively union all polygons
+    let merged = turfPolys[0]
+    for (let i = 1; i < turfPolys.length; i++) {
+      const result = turfUnion(merged, turfPolys[i])
+      if (result) merged = result
+    }
+
+    // Extract the outer ring from the result
+    const coords = merged.geometry.type === 'MultiPolygon'
+      ? merged.geometry.coordinates[0][0]   // Take the first polygon's outer ring
+      : merged.geometry.coordinates[0]      // Polygon outer ring
+
+    // Convert back to LatLng (drop the closing duplicate point)
+    const outline: LatLng[] = coords
+      .slice(0, -1)
+      .map(([lng, lat]: number[]) => ({ lat, lng }))
+
+    return outline.length >= 3 ? outline : computeConvexHull(parcellePolygons.flat())
+  } catch {
+    // Fallback to convex hull if union fails
+    return computeConvexHull(parcellePolygons.flat())
   }
-  return computeConvexHull(allPoints)
 }
 
 export function getBounds(polygon: LatLng[]) {
