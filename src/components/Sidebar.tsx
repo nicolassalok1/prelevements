@@ -270,17 +270,18 @@ function DeleteAccountSection() {
       const { supabase } = await import('../lib/supabase')
       if (supabase) {
         const { data: { session } } = await supabase.auth.getSession()
-        const { error } = await supabase.functions.invoke('delete-user', {
+        const { data, error } = await supabase.functions.invoke('delete-user', {
           headers: { Authorization: `Bearer ${session?.access_token}` },
         })
-        if (error) throw error
+        if (error) throw new Error(error.message || 'Edge Function error')
+        if (data?.error) throw new Error(data.error)
       }
       clearStorage()
       useAppStore.getState().clearAll()
       useAppStore.getState().toast('✓ Compte et données supprimés')
       signOut()
-    } catch {
-      useAppStore.getState().toast('⚠ Erreur lors de la suppression', true)
+    } catch (err) {
+      useAppStore.getState().toast(`⚠ Suppression échouée: ${(err as Error).message}`, true)
     }
   }
 
