@@ -269,19 +269,8 @@ function DeleteAccountSection() {
     try {
       const { supabase } = await import('../lib/supabase')
       if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) throw new Error('Session expirée, reconnectez-vous')
-        const resp = await supabase.functions.invoke('delete-user')
-        // functions.invoke can return error as FunctionsHttpError/FunctionsRelayError
-        if (resp.error) {
-          const ctx = resp.error.context
-          let detail = resp.error.message
-          if (ctx instanceof Response) {
-            try { const body = await ctx.json(); detail = body?.error || detail } catch { /* */ }
-          }
-          throw new Error(detail)
-        }
-        if (resp.data?.error) throw new Error(resp.data.error)
+        const { error } = await supabase.rpc('delete_own_account')
+        if (error) throw new Error(error.message)
       }
       clearStorage()
       useAppStore.getState().clearAll()
