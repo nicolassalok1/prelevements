@@ -271,9 +271,7 @@ function DeleteAccountSection() {
       if (supabase) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) throw new Error('Session expirée, reconnectez-vous')
-        const resp = await supabase.functions.invoke('delete-user', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
+        const resp = await supabase.functions.invoke('delete-user')
         // functions.invoke can return error as FunctionsHttpError/FunctionsRelayError
         if (resp.error) {
           const ctx = resp.error.context
