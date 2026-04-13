@@ -58,7 +58,10 @@ export function AuthPage() {
         }
         const { error } = await signUp(email, password, fullName)
         if (error) setError(error)
-        else setSuccess(t('auth.success_signup'))
+        else {
+          setSuccess(t('auth.success_signup'))
+          setTimeout(() => { switchMode('login') }, 2000)
+        }
       } else {
         const { error } = await signIn(email, password)
         if (error) setError(error)
