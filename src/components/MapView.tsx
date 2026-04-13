@@ -58,6 +58,60 @@ export function cancelEditExploit(): void {
   store.setEditTarget(null)
 }
 
+/** Validate any contour edit (exploit, field, champ). Called from Header. */
+export function finishEdit(): void {
+  const store = useAppStore.getState()
+  const et = store.editTarget
+  if (!et) return
+
+  if (et.type === 'exploit') {
+    finishEditExploit()
+  } else if (et.type === 'field') {
+    const f = store.fields.find((fld) => fld.id === et.fieldId)
+    if (f?.layer) {
+      const raw = f.layer.getLatLngs()[0] as L.LatLng[]
+      const latlngs = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
+      const area = calcArea(latlngs) / 10000
+      const perimeter = calcPerimeter(raw)
+      store.updateFieldPolygon(f.id, latlngs, area, perimeter)
+      if (f.labelMarker) f.labelMarker.setLatLng(f.layer.getBounds().getCenter())
+      if (f.champId) renderChampOnMap(f.champId)
+      void triggerAutoReliefIfNeeded(f.id)
+    }
+    store.setEditTarget(null)
+    store.toast('✓ Contour mis à jour')
+  } else if (et.type === 'champ') {
+    const champ = store.champs.find((c) => c.id === et.champId)
+    if (champ?.layer) {
+      const raw = champ.layer.getLatLngs()[0] as L.LatLng[]
+      const outline = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
+      store.setChampCustomOutline(champ.id, outline)
+      if (champ.labelMarker) champ.labelMarker.setLatLng(champ.layer.getBounds().getCenter())
+    }
+    store.setEditTarget(null)
+    store.toast('✓ Contour du champ mis à jour')
+  }
+}
+
+/** Cancel any contour edit (exploit, field, champ). Called from Header. */
+export function cancelEdit(): void {
+  const store = useAppStore.getState()
+  const et = store.editTarget
+  if (!et) return
+
+  if (et.type === 'exploit') {
+    cancelEditExploit()
+  } else if (et.type === 'field') {
+    const f = store.fields.find((fld) => fld.id === et.fieldId)
+    if (f?.layer) f.layer.setLatLngs(f.latlngs.map((ll) => [ll.lat, ll.lng]))
+    store.setEditTarget(null)
+  } else if (et.type === 'champ') {
+    const champ = store.champs.find((c) => c.id === et.champId)
+    if (champ) renderChampOnMap(champ.id)
+    store.setEditTarget(null)
+  }
+}
+
 export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
   const map = globalMap
   if (!map) return { ok: false, error: 'Carte non prête' }

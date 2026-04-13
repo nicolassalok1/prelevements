@@ -278,7 +278,7 @@ function ChampCard({ champ }: { champ: Champ }) {
                   <button className="btn-sm btn-cyan text-[10px]" title="Renommer le champ"
                     onClick={(e) => { e.stopPropagation(); setEditName(champ.name); setEditing(true) }}>✎ Renommer</button>
                   <button className="btn-sm btn-amber text-[10px]" title="Modifier le contour"
-                    onClick={(e) => { e.stopPropagation(); useAppStore.getState().setEditTarget({ type: 'champ', champId: champ.id }); useAppStore.getState().setSidebarOpen(false) }}>✎ Contour</button>
+                    onClick={(e) => { e.stopPropagation(); useAppStore.getState().setEditTarget({ type: 'champ', champId: champ.id }); useAppStore.getState().setSidebarOpen(false); useAppStore.getState().setMobileRightOpen(false) }}>✎ Contour</button>
                   {champ.customOutline && (
                     <button className="btn-sm btn-cyan text-[10px]" title="Recalculer auto"
                       onClick={(e) => { e.stopPropagation(); useAppStore.getState().setChampCustomOutline(champ.id, undefined); renderChampOnMap(champ.id); useAppStore.getState().toast(`✓ Contour recalculé`) }}>↻ Auto</button>
@@ -289,7 +289,7 @@ function ChampCard({ champ }: { champ: Champ }) {
                     <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1.5px] mb-1.5">Ajouter une nouvelle parcelle</div>
                     <div className="flex gap-1">
                       <button className="btn-sm btn-active flex-1 text-[10px]" title="Dessiner une nouvelle parcelle dans ce champ"
-                        onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawForChampId(champ.id); useAppStore.getState().setDrawTarget('field'); useAppStore.getState().setStatus(`DESSIN PARCELLE pour "${champ.name}" — cliquez les sommets`); useAppStore.getState().setSidebarOpen(false) }}>
+                        onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawForChampId(champ.id); useAppStore.getState().setDrawTarget('field'); useAppStore.getState().setStatus(`DESSIN PARCELLE pour "${champ.name}" — cliquez les sommets`); useAppStore.getState().setSidebarOpen(false); useAppStore.getState().setMobileRightOpen(false) }}>
                         ▭ Dessiner
                       </button>
                       <button className="btn-sm btn-cyan flex-1 text-[10px]" title="Assigner des parcelles existantes"
@@ -475,14 +475,14 @@ function FieldCard({ field: f, isSelected, onSelect, champId, onRemoveFromChamp 
                 ■ Stop points</button>
             ) : (
               <button className="btn-sm btn-amber"
-                onClick={(e) => { e.stopPropagation(); useAppStore.getState().setAddPointFieldId(f.id); useAppStore.getState().setSidebarOpen(false) }}>⊕ Point</button>
+                onClick={(e) => { e.stopPropagation(); useAppStore.getState().setAddPointFieldId(f.id); useAppStore.getState().setSidebarOpen(false); useAppStore.getState().setMobileRightOpen(false) }}>⊕ Point</button>
             )}
             <button className="btn-sm btn-cyan" title="Détails"
               onClick={(e) => { e.stopPropagation(); useAppStore.getState().openFieldDetail(f.id) }}>◈</button>
             <button className="btn-sm btn-cyan text-[10px]" title="Renommer"
               onClick={(e) => { e.stopPropagation(); setEditName(f.name); setEditing(true) }}>✎ Nom</button>
             <button className="btn-sm btn-amber" title="Modifier contour"
-              onClick={(e) => { e.stopPropagation(); useAppStore.getState().setEditTarget({ type: 'field', fieldId: f.id }); useAppStore.getState().setSidebarOpen(false) }}>✎</button>
+              onClick={(e) => { e.stopPropagation(); useAppStore.getState().setEditTarget({ type: 'field', fieldId: f.id }); useAppStore.getState().setSidebarOpen(false); useAppStore.getState().setMobileRightOpen(false) }}>✎</button>
             <button className="btn-sm btn-cyan" title="Archiver"
               onClick={(e) => { e.stopPropagation(); setArchiveOpen(true) }}>◱</button>
             {onRemoveFromChamp && (
@@ -785,7 +785,7 @@ function SerreCard({ champ }: { champ: Champ }) {
                     <div className="font-mono text-[9px] text-olive-lit uppercase tracking-[1.5px] mb-1.5">Ajouter une parcelle</div>
                     <div className="flex gap-1">
                       <button className="btn-sm btn-active flex-1 text-[10px]" title="Dessiner une nouvelle parcelle"
-                        onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawForChampId(champ.id); useAppStore.getState().setDrawTarget('field'); useAppStore.getState().setStatus(`DESSIN PARCELLE pour serre "${champ.name}"`); useAppStore.getState().setSidebarOpen(false) }}>
+                        onClick={(e) => { e.stopPropagation(); useAppStore.getState().setDrawForChampId(champ.id); useAppStore.getState().setDrawTarget('field'); useAppStore.getState().setStatus(`DESSIN PARCELLE pour serre "${champ.name}"`); useAppStore.getState().setSidebarOpen(false); useAppStore.getState().setMobileRightOpen(false) }}>
                         ▭ Dessiner
                       </button>
                       <button className="btn-sm btn-cyan flex-1 text-[10px]" title="Assigner des parcelles existantes"
