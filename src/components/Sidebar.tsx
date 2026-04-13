@@ -280,6 +280,7 @@ function DeleteAccountSection() {
       useAppStore.getState().toast('✓ Compte et données supprimés')
       signOut()
     } catch (err) {
+      console.error('Suppression échouée:', err)
       useAppStore.getState().toast(`⚠ Suppression échouée: ${(err as Error).message}`, true)
     }
   }
