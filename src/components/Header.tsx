@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../store/useAppStore'
 import { useAuth } from '../contexts/AuthContext'
 import { changeLanguage } from '../i18n'
-import { finishDraw, cancelDraw } from './MapView'
+import { finishDraw, cancelDraw, finishEditExploit, cancelEditExploit } from './MapView'
 
 const LANGS = [
   { code: 'fr', label: 'FR' },
@@ -19,6 +19,8 @@ export function Header() {
   const setDashboardOpen = useAppStore((s) => s.setDashboardOpen)
   const setCalendarOpen = useAppStore((s) => s.setCalendarOpen)
   const drawTarget = useAppStore((s) => s.drawTarget)
+  const editTarget = useAppStore((s) => s.editTarget)
+  const isEditingExploit = editTarget?.type === 'exploit'
   const { user, signOut } = useAuth()
   const [langOpen, setLangOpen] = useState(false)
 
@@ -49,16 +51,16 @@ export function Header() {
         {t('app.title')}
       </h1>
       <div className="flex-1" />
-      {drawTarget ? (
+      {drawTarget || isEditingExploit ? (
         <>
           <button
-            onClick={finishDraw}
+            onClick={drawTarget ? finishDraw : finishEditExploit}
             className="font-mono text-[10px] md:text-[11px] tracking-[1px] uppercase bg-olive/10 border border-olive-lit text-olive-lit px-3 md:px-4 py-1 cursor-pointer hover:bg-olive-lit hover:text-black transition-all flex items-center gap-1 h-8 md:h-auto"
           >
             ✓ Valider
           </button>
           <button
-            onClick={cancelDraw}
+            onClick={drawTarget ? cancelDraw : cancelEditExploit}
             className="font-mono text-[10px] md:text-[11px] tracking-[1px] uppercase bg-red/10 border border-red text-red px-3 md:px-4 py-1 cursor-pointer hover:bg-red hover:text-black transition-all flex items-center gap-1 h-8 md:h-auto"
           >
             ✕ Annuler

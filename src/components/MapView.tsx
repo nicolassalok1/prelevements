@@ -33,6 +33,31 @@ export function cancelDraw(): void {
   useAppStore.getState().setStatus('EN ATTENTE')
 }
 
+/** Validate exploit contour edit. Called from Header. */
+export function finishEditExploit(): void {
+  const store = useAppStore.getState()
+  if (store.exploitLayer) {
+    const raw = store.exploitLayer.getLatLngs()[0] as L.LatLng[]
+    const polygon = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
+    const area = calcArea(polygon) / 10000
+    store.updateExploitPolygon(polygon, area)
+    if (store.exploitLabel) {
+      store.exploitLabel.setLatLng(store.exploitLayer.getBounds().getCenter())
+    }
+  }
+  store.setEditTarget(null)
+  store.toast('✓ Exploitation mise à jour')
+}
+
+/** Cancel exploit contour edit. Called from Header. */
+export function cancelEditExploit(): void {
+  const store = useAppStore.getState()
+  if (store.exploitLayer && store.exploitPolygon) {
+    store.exploitLayer.setLatLngs(store.exploitPolygon.map((ll) => [ll.lat, ll.lng]))
+  }
+  store.setEditTarget(null)
+}
+
 export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
   const map = globalMap
   if (!map) return { ok: false, error: 'Carte non prête' }
