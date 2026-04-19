@@ -13,7 +13,7 @@ interface AuthState {
   resetPassword: (email: string) => Promise<{ error: string | null }>
 }
 
-const AuthContext = createContext<AuthState | null>(null)
+export const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   // When Supabase is not configured, skip auth entirely — local-only mode
