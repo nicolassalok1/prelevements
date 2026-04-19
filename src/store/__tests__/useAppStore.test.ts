@@ -583,7 +583,7 @@ describe('clearAll', () => {
 describe('Persist side-effect', () => {
   it('writes to localStorage after a mutating action', () => {
     useAppStore.getState().addStrain('NewStrain')
-    const raw = localStorage.getItem('anrac-prelevements-v2')
+    const raw = localStorage.getItem('beldifarmer-v1')
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!)
     expect(parsed.strains).toContain('NewStrain')

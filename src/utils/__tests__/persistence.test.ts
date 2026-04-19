@@ -234,7 +234,7 @@ describe('saveToStorage / loadFromStorage round-trip', () => {
   })
 
   it('returns null for corrupt JSON', () => {
-    localStorage.setItem('anrac-prelevements-v2', '{ not json')
+    localStorage.setItem('beldifarmer-v1', '{ not json')
     expect(loadFromStorage()).toBeNull()
   })
 })

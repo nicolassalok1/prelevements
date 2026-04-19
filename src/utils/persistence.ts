@@ -3,7 +3,21 @@ import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, Amend
 const GENERATION_METHODS: readonly GenerationMethod[] = ['grid', 'zigzag', 'random']
 import { supabase } from '../lib/supabase'
 
-const STORAGE_KEY = 'anrac-prelevements-v2'
+const STORAGE_KEY = 'beldifarmer-v1'
+const LEGACY_STORAGE_KEY = 'anrac-prelevements-v2'
+
+// One-shot migration from the legacy key used before the BeldiFarmer rename.
+// Runs once per browser on module load; if the new key is empty and the old key
+// has data, we move it over. Safe to remove after a few release cycles.
+try {
+  if (typeof localStorage !== 'undefined') {
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacy && !localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, legacy)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    }
+  }
+} catch { /* ignore quota / privacy-mode errors */ }
 
 // ── Cloud persistence (Supabase) ──
 
