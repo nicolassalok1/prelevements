@@ -165,6 +165,37 @@ describe('FieldDetailPanel — tab switching', () => {
   })
 })
 
+describe('FieldDetailPanel — SoilTab', () => {
+  it('shows the new-analysis form and empty list', () => {
+    useAppStore.setState({
+      fields: [makeField(1)],
+      selectedFieldId: 1,
+      fieldDetailOpen: true,
+      fieldDetailTab: 'soil',
+    })
+    renderWithI18n(<FieldDetailPanel />)
+    expect(screen.getByText(/Nouvelle analyse/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Texture')).toBeInTheDocument()
+    expect(screen.getByText(/Aucune analyse pour ce champ/i)).toBeInTheDocument()
+  })
+
+  it('lists existing analyses for this field only', () => {
+    useAppStore.setState({
+      fields: [makeField(1), makeField(2)],
+      selectedFieldId: 1,
+      fieldDetailOpen: true,
+      fieldDetailTab: 'soil',
+      soilAnalyses: [
+        { id: 1, date: '2026-01-01', fieldId: 1, ph: 7.2, nitrogen: 10, phosphorus: 5, potassium: 12, organicMatter: 2 },
+        { id: 2, date: '2026-01-02', fieldId: 2, ph: 6.5, nitrogen: 8, phosphorus: 4, potassium: 10, organicMatter: 3 },
+      ],
+    })
+    renderWithI18n(<FieldDetailPanel />)
+    expect(screen.getByText(/Analyses \(1\)/)).toBeInTheDocument()
+    expect(screen.getByText('7.2')).toBeInTheDocument() // pH of field 1's analysis
+  })
+})
+
 describe('FieldDetailPanel — OtherActivitiesTab', () => {
   it('shows a quick-add button + empty state when no "other" activities', () => {
     useAppStore.setState({
