@@ -165,6 +165,36 @@ describe('FieldDetailPanel — tab switching', () => {
   })
 })
 
+describe('FieldDetailPanel — OtherActivitiesTab', () => {
+  it('shows a quick-add button + empty state when no "other" activities', () => {
+    useAppStore.setState({
+      fields: [makeField(1)],
+      selectedFieldId: 1,
+      fieldDetailOpen: true,
+      fieldDetailTab: 'other',
+    })
+    renderWithI18n(<FieldDetailPanel />)
+    expect(screen.getByRole('button', { name: /Nouvelle activité/i })).toBeInTheDocument()
+    expect(screen.getByText(/Aucune activité pour ce champ/i)).toBeInTheDocument()
+  })
+
+  it('lists existing "other" activities for this field', () => {
+    useAppStore.setState({
+      fields: [makeField(1)],
+      selectedFieldId: 1,
+      fieldDetailOpen: true,
+      fieldDetailTab: 'other',
+      activities: [
+        { id: 1, date: '2026-01-01', type: 'other', fieldIds: [1], workerCount: 2, other: { title: 'Désherbage' }, createdAt: '2026-01-01' },
+        { id: 2, date: '2026-01-02', type: 'watering', fieldIds: [1], workerCount: 0, watering: { method: 'goutte_a_goutte', durationMin: 10 }, createdAt: '2026-01-02' },
+      ],
+    })
+    renderWithI18n(<FieldDetailPanel />)
+    expect(screen.getByText(/Désherbage/)).toBeInTheDocument()
+    expect(screen.queryByText(/Goutte à goutte/i)).toBeNull() // watering filtered out
+  })
+})
+
 describe('FieldDetailPanel — BatchesTab', () => {
   function openSerreWithBatchTab() {
     useAppStore.setState({
