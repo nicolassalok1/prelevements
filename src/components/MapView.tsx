@@ -698,7 +698,7 @@ async function restorePersistedData(map: L.Map, userId?: string) {
   const store = useAppStore.getState()
 
   // Restore config
-  if (saved.generationMethod) store.setGenerationMethod(saved.generationMethod as any)
+  if (saved.generationMethod) store.setGenerationMethod(saved.generationMethod)
   if (saved.density) store.setDensity(saved.density)
 
   // Restore exploitation

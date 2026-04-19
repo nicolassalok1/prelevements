@@ -1,4 +1,6 @@
-import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity, Champ, ChampType, SerreInfo, SerreBatch, SerrePlaque, ClimateMeasure } from '../types'
+import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity, Champ, ChampType, SerreInfo, SerreBatch, SerrePlaque, ClimateMeasure, GenerationMethod } from '../types'
+
+const GENERATION_METHODS: readonly GenerationMethod[] = ['grid', 'zigzag', 'random']
 import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'anrac-prelevements-v2'
@@ -105,7 +107,7 @@ export interface PersistedData {
   exploitArea: number
   fields: PersistedField[]
   fieldIdCounter: number
-  generationMethod: string
+  generationMethod: GenerationMethod
   density: number
   employees: Employee[]
   employeeIdCounter: number
@@ -158,7 +160,7 @@ export function buildPersistedData(state: {
   fieldIdCounter: number
   champs: Champ[]
   champIdCounter: number
-  generationMethod: string
+  generationMethod: GenerationMethod
   density: number
   employees: Employee[]
   employeeIdCounter: number
@@ -243,7 +245,7 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
   data.champs.forEach((c) => { c.type ??= 'champ' })
   data.champIdCounter ??= 0
   data.fieldIdCounter ??= data.fields?.length ?? 0
-  data.generationMethod ??= 'grid'
+  if (!GENERATION_METHODS.includes(data.generationMethod)) data.generationMethod = 'grid'
   data.density ??= 1
   data.exploitArea ??= 0
   data.fields ??= []
