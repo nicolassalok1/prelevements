@@ -7,108 +7,17 @@ import { setCurrentUserId } from '../utils/persistence'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
 import { getMap, setMap, clearMap, createPointIcon, renderChampOnMap } from '../utils/mapRenderers'
 import { restorePersistedData } from '../utils/mapRestore'
+import { setDrawHandler, finishDraw, cancelDraw, finishEdit, cancelEdit } from '../utils/mapDrawControls'
 import { useAuth } from '../contexts/AuthContext'
 import { GeolocationControl } from './GeolocationControl'
 import type { LatLng, Field, UserLocation } from '../types'
 
 // Re-exports so existing imports from './MapView' keep working (Header, FieldList).
 export { getMap, renderChampOnMap }
+export { finishDraw, cancelDraw, finishEdit, cancelEdit }
 
-let globalDrawHandler: L.Draw.Polygon | null = null
 // Guards against React StrictMode double-mount duplicating persisted data into the store.
 let persistedDataRestored = false
-
-/** Complete the current draw (validate the polygon). Called from Header. */
-export function finishDraw(): void {
-  if (globalDrawHandler) {
-    try { (globalDrawHandler as any).completeShape() } catch { /* not enough points */ }
-  }
-}
-
-/** Cancel the current draw. Called from Header. */
-export function cancelDraw(): void {
-  useAppStore.getState().setDrawTarget(null)
-  useAppStore.getState().setStatus('EN ATTENTE')
-}
-
-/** Validate exploit contour edit. Called from Header. */
-export function finishEditExploit(): void {
-  const store = useAppStore.getState()
-  if (store.exploitLayer) {
-    const raw = store.exploitLayer.getLatLngs()[0] as L.LatLng[]
-    const polygon = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
-    const area = calcArea(polygon) / 10000
-    store.updateExploitPolygon(polygon, area)
-    if (store.exploitLabel) {
-      store.exploitLabel.setLatLng(store.exploitLayer.getBounds().getCenter())
-    }
-  }
-  store.setEditTarget(null)
-  store.toast('✓ Exploitation mise à jour')
-}
-
-/** Cancel exploit contour edit. Called from Header. */
-export function cancelEditExploit(): void {
-  const store = useAppStore.getState()
-  if (store.exploitLayer && store.exploitPolygon) {
-    store.exploitLayer.setLatLngs(store.exploitPolygon.map((ll) => [ll.lat, ll.lng]))
-  }
-  store.setEditTarget(null)
-}
-
-/** Validate any contour edit (exploit, field, champ). Called from Header. */
-export function finishEdit(): void {
-  const store = useAppStore.getState()
-  const et = store.editTarget
-  if (!et) return
-
-  if (et.type === 'exploit') {
-    finishEditExploit()
-  } else if (et.type === 'field') {
-    const f = store.fields.find((fld) => fld.id === et.fieldId)
-    if (f?.layer) {
-      const raw = f.layer.getLatLngs()[0] as L.LatLng[]
-      const latlngs = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
-      const area = calcArea(latlngs) / 10000
-      const perimeter = calcPerimeter(raw)
-      store.updateFieldPolygon(f.id, latlngs, area, perimeter)
-      if (f.labelMarker) f.labelMarker.setLatLng(f.layer.getBounds().getCenter())
-      if (f.champId) renderChampOnMap(f.champId)
-      void triggerAutoReliefIfNeeded(f.id)
-    }
-    store.setEditTarget(null)
-    store.toast('✓ Contour mis à jour')
-  } else if (et.type === 'champ') {
-    const champ = store.champs.find((c) => c.id === et.champId)
-    if (champ?.layer) {
-      const raw = champ.layer.getLatLngs()[0] as L.LatLng[]
-      const outline = raw.map((ll: L.LatLng) => ({ lat: ll.lat, lng: ll.lng }))
-      store.setChampCustomOutline(champ.id, outline)
-      if (champ.labelMarker) champ.labelMarker.setLatLng(champ.layer.getBounds().getCenter())
-    }
-    store.setEditTarget(null)
-    store.toast('✓ Contour du champ mis à jour')
-  }
-}
-
-/** Cancel any contour edit (exploit, field, champ). Called from Header. */
-export function cancelEdit(): void {
-  const store = useAppStore.getState()
-  const et = store.editTarget
-  if (!et) return
-
-  if (et.type === 'exploit') {
-    cancelEditExploit()
-  } else if (et.type === 'field') {
-    const f = store.fields.find((fld) => fld.id === et.fieldId)
-    if (f?.layer) f.layer.setLatLngs(f.latlngs.map((ll) => [ll.lat, ll.lng]))
-    store.setEditTarget(null)
-  } else if (et.type === 'champ') {
-    const champ = store.champs.find((c) => c.id === et.champId)
-    if (champ) renderChampOnMap(champ.id)
-    store.setEditTarget(null)
-  }
-}
 
 export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
   const map = getMap()
@@ -363,7 +272,7 @@ export function MapView() {
       })
       handler.enable()
       drawHandlerRef.current = handler
-      globalDrawHandler = handler
+      setDrawHandler(handler)
     } else if (drawTarget === 'field') {
       containerRef.current?.classList.add('cursor-crosshair')
       const store = useAppStore.getState()
@@ -373,10 +282,10 @@ export function MapView() {
       })
       handler.enable()
       drawHandlerRef.current = handler
-      globalDrawHandler = handler
+      setDrawHandler(handler)
     } else {
       containerRef.current?.classList.remove('cursor-crosshair')
-      globalDrawHandler = null
+      setDrawHandler(null)
     }
   }, [drawTarget])
 
@@ -482,7 +391,7 @@ export function MapView() {
     if (drawHandlerRef.current) {
       try { drawHandlerRef.current.disable() } catch { /* ignore */ }
       drawHandlerRef.current = null
-      globalDrawHandler = null
+      setDrawHandler(null)
     }
   }
 
