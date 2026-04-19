@@ -5,20 +5,17 @@ import { useAppStore, FIELD_COLORS } from '../store/useAppStore'
 import { calcArea, calcPerimeter, isInsidePolygon } from '../utils/geometry'
 import { loadFromCloud, loadFromStorage, setCurrentUserId } from '../utils/persistence'
 import { triggerAutoReliefIfNeeded } from '../utils/relief-background'
+import { getMap, setMap, clearMap, createPointIcon, renderChampOnMap } from '../utils/mapRenderers'
 import { useAuth } from '../contexts/AuthContext'
 import { GeolocationControl } from './GeolocationControl'
 import type { LatLng, Field, UserLocation, Champ } from '../types'
 
-// Module-level ref so other components can interact with the map programmatically.
-// Use getMap() to access it — don't read `globalMap` directly from other modules.
-let globalMap: L.Map | null = null
+// Re-exports so existing imports from './MapView' keep working (Header, FieldList).
+export { getMap, renderChampOnMap }
+
 let globalDrawHandler: L.Draw.Polygon | null = null
 // Guards against React StrictMode double-mount duplicating persisted data into the store.
 let persistedDataRestored = false
-
-export function getMap(): L.Map | null {
-  return globalMap
-}
 
 /** Complete the current draw (validate the polygon). Called from Header. */
 export function finishDraw(): void {
@@ -113,7 +110,7 @@ export function cancelEdit(): void {
 }
 
 export function addPointFromCoords(fieldId: number, lat: number, lng: number, notes?: string): { ok: boolean; error?: string } {
-  const map = globalMap
+  const map = getMap()
   if (!map) return { ok: false, error: 'Carte non prête' }
   const store = useAppStore.getState()
   const field = store.fields.find((f) => f.id === fieldId)
@@ -137,7 +134,7 @@ export function addPointFromCoords(fieldId: number, lat: number, lng: number, no
  * Captures altitude and accuracy if provided by the device.
  */
 export function addPointFromUserLocation(fieldId: number, loc: UserLocation, notes?: string): { ok: boolean; error?: string } {
-  const map = globalMap
+  const map = getMap()
   if (!map) return { ok: false, error: 'Carte non prête' }
   const store = useAppStore.getState()
   const field = store.fields.find((f) => f.id === fieldId)
@@ -326,7 +323,7 @@ export function MapView() {
     })
 
     mapRef.current = map
-    globalMap = map
+    setMap(map)
 
     // Reset map-bound store state before restoring. This prevents StrictMode's
     // double-mount from duplicating fields (the Zustand store outlives the
@@ -347,7 +344,7 @@ export function MapView() {
     return () => {
       map.remove()
       mapRef.current = null
-      globalMap = null
+      clearMap()
     }
   }, [])
 
@@ -611,83 +608,6 @@ function handleFieldCreated(layer: L.Polygon, map: L.Map) {
   void triggerAutoReliefIfNeeded(field.id)
 }
 
-// ── Point icon ──
-
-function createPointIcon(color: string, label: string) {
-  return L.divIcon({
-    html: `<div class="point-marker" style="--pt-color:${color}">
-      <svg width="32" height="40" viewBox="0 0 32 40">
-        <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24C32 7.2 24.8 0 16 0z" fill="${color}"/>
-        <circle cx="16" cy="15" r="9" fill="#0d1117"/>
-      </svg>
-      <span class="point-label">${label}</span>
-    </div>`,
-    iconSize: [32, 40],
-    iconAnchor: [16, 40],
-    popupAnchor: [0, -36],
-    className: '',
-  })
-}
-
-// ── Champ outline helpers ──
-
-/**
- * Create or update the Leaflet layer for a champ on the map.
- * Uses customOutline if set, otherwise auto-computes convex hull from parcelles.
- */
-export function renderChampOnMap(champId: number) {
-  const map = globalMap
-  if (!map) return
-  const store = useAppStore.getState()
-  const champ = store.champs.find((c) => c.id === champId)
-  if (!champ) return
-
-  // Remove old champ outline layer if any
-  champ.layer?.remove()
-  champ.labelMarker?.remove()
-
-  const parcelles = store.fields.filter((f) => champ.parcelleIds.includes(f.id) && !f.archived)
-  if (parcelles.length === 0) {
-    store.setChampLayer(champId, undefined as unknown as L.Polygon, undefined as unknown as L.Marker)
-    return
-  }
-
-  // Recolor each parcelle with the champ color
-  const color = champ.color
-  parcelles.forEach((f) => {
-    store.updateField(f.id, { color })
-    if (f.layer) {
-      f.layer.setStyle({ color, fillColor: color, weight: 2, fillOpacity: 0.18 })
-    }
-    if (f.labelMarker) {
-      f.labelMarker.setIcon(L.divIcon({
-        html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:${color};text-shadow:0 0 4px #000,0 0 8px #000;white-space:nowrap">${f.name}</div>`,
-        iconSize: [0, 0], className: '',
-      }))
-    }
-  })
-
-  // Place champ label at center of all parcelles bounds
-  const allLatLngs = parcelles.flatMap((f) => f.latlngs.map((ll) => L.latLng(ll.lat, ll.lng)))
-  const bounds = L.latLngBounds(allLatLngs)
-  const center = bounds.getCenter()
-
-  const labelMarker = L.marker(center, {
-    zIndexOffset: 1000,
-    icon: L.divIcon({
-      html: `<div style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;color:${champ.color};text-shadow:0 0 6px #000,0 0 12px #000;white-space:nowrap;letter-spacing:1px;text-transform:uppercase;cursor:pointer">${champ.name}</div>`,
-      iconSize: [0, 0], className: '',
-    }),
-  }).addTo(map)
-
-  labelMarker.on('click', () => {
-    useAppStore.getState().selectChamp(champId)
-    useAppStore.getState().setMobileRightOpen(true)
-  })
-
-  // No champ outline polygon — parcelles themselves show the champ
-  store.setChampLayer(champId, undefined as unknown as L.Polygon, labelMarker)
-}
 
 // ── Restore persisted data ──
 
