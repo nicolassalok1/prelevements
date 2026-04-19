@@ -1,4 +1,4 @@
-import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity, Champ } from '../types'
+import type { LatLng, SamplingPoint, CultureInfo, Employee, WateringEntry, AmendmentEntry, SoilAnalysis, ReliefInfo, AgendaTask, Activity, Champ, ChampType, SerreInfo, SerreBatch, SerrePlaque, ClimateMeasure } from '../types'
 import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'anrac-prelevements-v2'
@@ -85,9 +85,9 @@ export interface PersistedField {
   archivedAt?: string
   archivedVisible?: boolean
   champId?: number
-  batches?: any[]
-  plaques?: any[]
-  climateMeasures?: any[]
+  batches?: SerreBatch[]
+  plaques?: SerrePlaque[]
+  climateMeasures?: ClimateMeasure[]
 }
 
 export interface PersistedChamp {
@@ -96,8 +96,8 @@ export interface PersistedChamp {
   color: string
   parcelleIds: number[]
   customOutline?: LatLng[]
-  type?: 'champ' | 'serre'
-  serreInfo?: { germinationDate?: string; status: string; nodeCount?: number; targetChampId?: number; transferDate?: string }
+  type?: ChampType
+  serreInfo?: SerreInfo
 }
 
 export interface PersistedData {
@@ -151,9 +151,9 @@ export function buildPersistedData(state: {
     archivedAt?: string
     archivedVisible?: boolean
     champId?: number
-    batches?: any[]
-    plaques?: any[]
-    climateMeasures?: any[]
+    batches?: SerreBatch[]
+    plaques?: SerrePlaque[]
+    climateMeasures?: ClimateMeasure[]
   }>
   fieldIdCounter: number
   champs: Champ[]
@@ -240,7 +240,7 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
   data.activities ??= []
   data.activityIdCounter ??= 0
   data.champs ??= []
-  data.champs.forEach((c: any) => { c.type ??= 'champ' })
+  data.champs.forEach((c) => { c.type ??= 'champ' })
   data.champIdCounter ??= 0
   data.fieldIdCounter ??= data.fields?.length ?? 0
   data.generationMethod ??= 'grid'
@@ -259,6 +259,9 @@ export function normalizePersistedData(data: PersistedData): PersistedData {
     f.assignedManager ??= null
     f.archived ??= false
     f.points ??= []
+    f.batches ??= []
+    f.plaques ??= []
+    f.climateMeasures ??= []
   })
   // Keep counter aligned with the highest id present
   const maxId = data.fields.reduce((m, f) => Math.max(m, f.id), 0)

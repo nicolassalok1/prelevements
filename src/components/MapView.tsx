@@ -782,9 +782,9 @@ async function restorePersistedData(map: L.Map, userId?: string) {
         archivedAt: sf.archivedAt,
         archivedVisible: sf.archivedVisible,
         champId: sf.champId,
-        batches: (sf as any).batches,
-        plaques: (sf as any).plaques,
-        climateMeasures: (sf as any).climateMeasures,
+        batches: sf.batches,
+        plaques: sf.plaques,
+        climateMeasures: sf.climateMeasures,
         layer,
         labelMarker,
         pointMarkers,
@@ -804,10 +804,10 @@ async function restorePersistedData(map: L.Map, userId?: string) {
     saved.champs.forEach((sc) => {
       const champ: Champ = {
         id: sc.id, name: sc.name, color: sc.color,
-        type: (sc as any).type || 'champ',
+        type: sc.type || 'champ',
         parcelleIds: sc.parcelleIds,
         customOutline: sc.customOutline,
-        serreInfo: (sc as any).serreInfo,
+        serreInfo: sc.serreInfo,
       }
       store.addChamp(champ)
     })
