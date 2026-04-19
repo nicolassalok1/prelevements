@@ -44,7 +44,7 @@ export function Header() {
       >
         ☰
       </button>
-      <div className="font-mono text-[11px] text-olive-lit tracking-[2px] border border-olive px-2 py-0.5 shrink-0">
+      <div className="hidden md:block font-mono text-[11px] text-olive-lit tracking-[2px] border border-olive px-2 py-0.5 shrink-0">
         {t('app.brand')}
       </div>
       <h1 className="hidden md:block text-[15px] font-semibold tracking-[3px] uppercase text-text">
@@ -73,14 +73,14 @@ export function Header() {
             title="Dashboard"
             className="font-mono text-[10px] md:text-[11px] tracking-[1px] uppercase bg-amber/10 border border-amber text-amber px-2 md:px-3 py-1 cursor-pointer hover:bg-amber hover:text-black transition-all flex items-center gap-1 h-8 md:h-auto"
           >
-            <span className="text-xs">◈</span> <span className="hidden md:inline">Dashboard</span>
+            <span className="text-xs">◈</span> <span>Dashboard</span>
           </button>
           <button
             onClick={() => setCalendarOpen(true)}
             title="Agenda"
             className="font-mono text-[10px] md:text-[11px] tracking-[1px] uppercase bg-cyan/10 border border-cyan text-cyan px-2 md:px-3 py-1 cursor-pointer hover:bg-cyan hover:text-black transition-all flex items-center gap-1 h-8 md:h-auto"
           >
-            <span className="text-xs">◰</span> <span className="hidden md:inline">Agenda</span>
+            <span className="text-xs">◰</span> <span>Agenda</span>
           </button>
         </>
       )}
@@ -91,7 +91,7 @@ export function Header() {
           </span>
 
           {/* Language selector */}
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <button
               onClick={(e) => { e.stopPropagation(); setLangOpen(!langOpen) }}
               className="font-mono text-[10px] text-muted border border-border px-1.5 md:px-2 py-0.5 cursor-pointer hover:border-amber hover:text-amber transition-all flex items-center gap-1 h-8 md:h-auto"
@@ -130,7 +130,7 @@ export function Header() {
       )}
       <button
         onClick={() => setHelpOpen(!helpOpen)}
-        className="font-mono text-[13px] text-muted border border-border w-9 h-9 md:w-7 md:h-7 flex items-center justify-center cursor-pointer hover:border-olive-lit hover:text-olive-lit transition-all shrink-0"
+        className="hidden md:flex font-mono text-[13px] text-muted border border-border w-9 h-9 md:w-7 md:h-7 items-center justify-center cursor-pointer hover:border-olive-lit hover:text-olive-lit transition-all shrink-0"
       >
         ?
       </button>
