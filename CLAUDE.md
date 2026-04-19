@@ -18,7 +18,22 @@
 
 ### Strains par défaut
 Les strains Cali par défaut sont : Cali Water, Mochi Coco, One Hitter, Yuzu
-Elles sont définies dans `DEFAULT_CALI_STRAINS` dans FieldDetailPanel.tsx
+Elles sont définies dans `DEFAULT_CALI_STRAINS` dans `src/components/fieldDetail/CultureTab.tsx`.
+
+### Structure modulaire FieldDetailPanel
+FieldDetailPanel.tsx n'est qu'une shell. Chaque tab vit dans `src/components/fieldDetail/` :
+- shell routing : `FieldDetailPanel.tsx`
+- helpers partagés : `shared.tsx` (`useField`, `Label`, `Empty`, `StatCard`, `*_LABELS`)
+- activités : `activityList.tsx` (`QuickAddActivityButton`, `ActivityList`)
+- tabs : `InfoTab.tsx`, `CultureTab.tsx`, `WateringTab.tsx`, `AmendmentsTab.tsx`, `OtherActivitiesTab.tsx`, `SoilTab.tsx`, `ReliefTab.tsx`, `BatchesTab.tsx`
+
+### Structure modulaire MapView
+MapView.tsx délègue la logique non-React à `src/utils/map*.ts` :
+- `mapRenderers.ts` : singleton `globalMap` (`getMap`/`setMap`/`clearMap`), `createPointIcon`, `renderChampOnMap`
+- `mapRestore.ts` : `restorePersistedData` (hydrate store + layers au chargement)
+- `mapDrawControls.ts` : `setDrawHandler` + `finishDraw`/`cancelDraw`/`finishEdit`/`cancelEdit` (boutons Valider/Annuler du Header)
+
+MapView ré-exporte ces fonctions pour que Header et FieldList continuent d'importer depuis `./MapView`.
 
 ### Stack
 - React + TypeScript + Vite + Tailwind CSS v4
