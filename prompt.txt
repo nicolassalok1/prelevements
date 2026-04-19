@@ -1,5 +1,0 @@
-1/ dans "Arrosage", tu dois pouvoir saisir le temps d'arrosage et et le debit par heure, pas de nombre d'ouvriers
-
-2/ pour les "engrais" tu laisses le nombre d'ouvriers mais tu rajoute le type d'engrais ("text input"); même probleme de doublons pour les zones
-
-3/ laisses "Autres" comme il est

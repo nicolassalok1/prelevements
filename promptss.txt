@@ -1,5 +1,0 @@
-ajouter un bouton : masquer le contour de l'exploitation
-
-je veux un onglet dans le Dashboard qui regroupe l'historique des dépenses, listé par type 
-
-Je veux ajouter des Notes de parcelle dans les détails, on doit pouvoir créer une activité depuis une parcelle 
