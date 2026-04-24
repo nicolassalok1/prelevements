@@ -1,5 +1,24 @@
 # CLAUDE.md — Instructions pour Claude Code
 
+## Mode opératoire
+
+- **Autonomie maximale** sur opérations locales réversibles (code, tests, refactor, type-check, lint, build local). Ne pas demander de permission.
+- **Confirmation requise** pour : actions destructives (rm -rf, force-push, reset --hard), envois externes (ouverture PR, messages, emails), engagements financiers, modifications Supabase prod qui cassent la rétro-compat du JSONB.
+- Lancer `npm test` + `npm run lint` + `npm run build` après chaque modification significative.
+- Si un build casse, le corriger immédiatement.
+- Commits conventionnels avec scope (`feat(map):`, `fix(ui):`, `refactor(fieldDetail):`, etc.).
+- **Répondre toujours en français.**
+
+## Standards de code
+
+- **TypeScript strict** : pas de `any`, `unknown` à défaut.
+- **i18n obligatoire** : aucun texte en dur dans le JSX — toujours `useTranslation()`. Fichiers dans `src/i18n/`.
+- **Tailwind CSS 4** pour tout le styling — pas de CSS modules, pas de styled-components.
+- **Zustand** pour tout le state partagé/persisté — pas de Context API pour ça.
+- **Mobile-first** : tester en responsive avant de merger (safe-area, FAB, sidebar compacte).
+- **Composants en .tsx, utils/types/lib en .ts**.
+- **Un composant par fichier** pour les gros composants (shell + tabs extraits).
+
 ## Règles de développement
 
 ### Compatibilité base de données (Supabase)
@@ -36,8 +55,35 @@ MapView.tsx délègue la logique non-React à `src/utils/map*.ts` :
 MapView ré-exporte ces fonctions pour que Header et FieldList continuent d'importer depuis `./MapView`.
 
 ### Stack
-- React + TypeScript + Vite + Tailwind CSS v4
-- Zustand pour le state management
-- Supabase pour l'auth et la persistence
-- Leaflet pour la cartographie
-- Déploiement sur Vercel
+- React 19 + TypeScript 5.9 strict + Vite 8
+- Tailwind CSS 4 (plugin Vite `@tailwindcss/vite`)
+- Zustand 5 pour le state management
+- Supabase (`@supabase/supabase-js` 2.103) pour l'auth et la persistence
+- Leaflet 1.9 + `leaflet-draw` + `react-leaflet` 5 pour la cartographie
+- Turf.js (`@turf/helpers`, `@turf/union`) pour les calculs géo
+- i18next 26 + react-i18next 17 pour l'i18n
+- Vitest 4 + Testing Library + happy-dom pour les tests
+- Déploiement sur Vercel (auto-deploy sur push `main`)
+
+## Pointeurs externes
+
+### Vault Obsidian — knowledge base projet
+- `10-projects/BeldiFarmer/00-index.md` — index + snapshot
+- `10-projects/BeldiFarmer/10-architecture/overview.md` — stack complète + patterns (Zustand, JSONB, MapView modulaire, FieldDetailPanel 8 tabs, i18n, mobile-first)
+- `10-projects/BeldiFarmer/10-architecture/persistence-jsonb.md` — **pattern JSONB détaillé**, checklist à suivre à chaque nouveau champ persisté, pièges de rétro-compat
+- `10-projects/BeldiFarmer/30-features/map-and-field-detail.md` — découpage MapView + utils + les 8 tabs FieldDetailPanel
+- `10-projects/BeldiFarmer/50-ops/env-and-deploy.md` — env vars, Vercel, Supabase, edge functions, checklist avant release
+
+### Docs libraries
+Pour tout ce qui touche Leaflet / leaflet-draw / react-leaflet / Zustand / Supabase / Turf / i18next / Tailwind CSS 4 / Vite 8 / Vitest 4 / React 19 → **utiliser MCP `context7`** (resolve-library-id puis query-docs). Le training data est souvent périmé sur ces libs qui bougent vite, notamment l'écosystème carto.
+
+### Skills réutilisables
+- **`dev-beldifarmer`** — skill dédiée (patterns, pièges, stack). Auto-triggerée sur les mots-clés projet.
+- **`frontend-design-mentor`** — pour questions design / palette / composants / mobile UX.
+
+## Principes de code transverses
+Les **4 principes Karpathy** du CLAUDE.md global s'appliquent :
+- **Think before coding** : hypothèses explicites, demander si flou, ne pas implémenter en silence.
+- **Simplicity First** : pas de feature au-delà de la demande, pas d'abstraction prématurée.
+- **Surgical Changes** : toucher uniquement ce qui est demandé, pas d'amélioration adjacente non demandée.
+- **Goal-Driven Execution** : critères de succès vérifiables (tests qui reproduisent le bug, tests qui passent).
